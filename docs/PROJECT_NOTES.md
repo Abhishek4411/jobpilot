@@ -1052,7 +1052,7 @@ When job alert emails are processed:
 
 **Issue 1: Gmail IMAP "socket error: EOF"**
 - Root cause: IMAP is not enabled in the Gmail account settings
-- The credentials in .env are correct (patelabhishek441@gmail.com + 16-char app password)
+- The credentials in .env are correct (Gmail address + 16-char app password)
 - Fix required by user: Gmail > Settings > Forwarding and POP/IMAP > Enable IMAP > Save
 - Code fix: Added 20-second socket timeout in `_connect()` in `email_reader.py` — prevents the email job from hanging indefinitely when Gmail is unreachable
 
