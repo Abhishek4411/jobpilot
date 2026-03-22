@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - JobPilot{% endblock %}
+{% block topbar_title %}Overview{% endblock %}
+{% block content %}
+
+<div class="welcome-banner">
+  <div class="welcome-text">
+    <h2>Good to see you, Abhishek.</h2>
+    <p>Your automated job search agent is running. Here's what's happening right now.</p>
+  </div>
+  <div class="welcome-actions">
+    <div id="briefing-section">
+      <!-- Populated by JS polling /api/briefing/status every 15s -->
+      <div class="briefing-loading">
+        <div class="briefing-dots"><span></span><span></span><span></span></div>
+        <span>Loading briefing&hellip;</span>
+      </div>
+    </div>
+    <a href="{{ url_for('main.approvals') }}" class="btn btn-primary btn-sm">Review Approvals</a>
+  </div>
+</div>
+
+<!-- Stats grid: factual counts only -->
+<div class="stats-grid" id="stats-skeleton" style="display:none;">
+  <div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-stat"></div>
+  <div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-stat"></div>
+</div>
+
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card stat-card--blue">
+    <div class="stat-value">{{ stats.total_jobs | default(0) }}</div>
+    <div class="stat-label">Total Jobs Found</div>
+    <div class="stat-sub">+{{ stats.discovered | default(0) }} today</div>
+  </div>
+  <div class="stat-card stat-card--green">
+    <div class="stat-value">{{ stats.ever_matched | default(0) }}</div>
+    <div class="stat-label">Matched Your Profile</div>
+    <div class="stat-sub">AI-scored match ({{ stats.pending_approval | default(0) }} pending approval)</div>
+  </div>
+  <div class="stat-card stat-card--purple">
+    <div class="stat-value">{{ stats.applied_total | default(0) }}</div>
+    <div class="stat-label">Applications Sent</div>
+    <div class="stat-sub">+{{ stats.applied | default(0) }} today</div>
+  </div>
+  <div class="stat-card stat-card--warn">
+    <div class="stat-value">{{ stats.recruiter_emails | default(0) }}</div>
+    <div class="stat-label">Recruiter Contacts</div>
+    <div class="stat-sub">{{ stats.interviews | default(0) }} interview request{{ 's' if stats.interviews != 1 else '' }}</div>
+  </div>
+</div>
+
+{% if stats.manual_needed and stats.manual_needed > 0 %}
+<div class="alert alert-warning" style="margin-bottom:1.25rem;">
+  <strong>{{ stats.manual_needed }} job{{ 's' if stats.manual_needed != 1 else '' }} need manual application</strong>
+  &mdash; automation could not complete these.
+  <a href="{{ url_for('main.logs') }}?agent=applier" style="color:inherit;font-weight:700;text-decoration:underline;">View in Logs</a>
+</div>
+{% endif %}
+
+{% if stats.pending_approval and stats.pending_approval > 0 %}
+<div class="alert" style="background:rgba(88,166,255,.08);border:1px solid var(--accent);color:var(--accent);margin-bottom:1.25rem;">
+  <strong>{{ stats.pending_approval }} job{{ 's' if stats.pending_approval != 1 else '' }} waiting for your approval</strong>
+  &mdash; review and approve or skip.
+  <a href="{{ url_for('main.approvals') }}" style="color:inherit;font-weight:700;text-decoration:underline;">Go to Approvals</a>
+</div>
+{% endif %}
+
+<div class="charts-row">
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span id="chartDailyTitle">Jobs Discovered (last 14 days)</span>
+      <span style="display:flex;gap:.35rem;">
+        <button class="btn btn-sm btn-secondary" id="btnDiscovered" onclick="switchChart('discovered')">Discovered</button>
+        <button class="btn btn-sm btn-ghost" id="btnApplied" onclick="switchChart('applied')">Applied</button>
+      </span>
+    </div>
+    <canvas id="chartDaily" height="90"></canvas>
+    <div id="chartDailyEmpty" style="display:none;text-align:center;color:var(--text-muted);font-size:.8rem;padding:1.5rem 0;">No applications yet — approve jobs on the Approvals page to start applying.</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Jobs by Source</div>
+    <canvas id="chartSources"></canvas>
+    <div id="sourceLegend" style="margin-top:.65rem;display:flex;flex-wrap:wrap;gap:.3rem .75rem;"></div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Job Locations</div>
+    <div class="heatmap-card">
+      <div id="minimap"></div>
+    </div>
+    <div class="location-legend" id="legend-india" style="margin-top:.5rem;"></div>
+    <a href="{{ url_for('main.heatmap_page') }}" class="btn btn-secondary btn-sm" style="margin-top:.5rem;">Full Heatmap</a>
+  </div>
+  <div class="card">
+    <div class="card-title">Recent Activity</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Time</th><th>Agent</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td class="text-muted" style="font-size:.74rem;white-space:nowrap;">{{ log['created_at'][11:19] }}</td>
+            <td><span class="badge badge-agent">{{ log['agent'] }}</span></td>
+            <td style="font-size:.8rem;">{{ log['action'] }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted text-center">No activity yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <a href="{{ url_for('main.logs') }}" class="btn btn-ghost btn-sm" style="margin-top:.5rem;">All Logs &rarr;</a>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="danger-zone">
+  <div class="danger-zone-label">
+    <b>Danger Zone</b> &mdash; Clear all jobs, emails, and applications and start fresh.
+  </div>
+  <button class="btn btn-danger btn-sm" onclick="document.getElementById('resetModal').classList.add('open')">
+    Reset Database
+  </button>
+</div>
+
+<!-- Reset confirmation modal -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal-box">
+    <h3>Reset Database?</h3>
+    <p>
+      This will permanently delete all jobs, emails, applications, activity logs, and CV update history.
+      Your resume and config files are <strong>not</strong> affected.
+      The agent will start completely fresh on the next scheduled cycle.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('resetModal').classList.remove('open')">Cancel</button>
+      <form method="post" action="{{ url_for('main.reset_database') }}" style="display:inline">
+        <button class="btn btn-danger" type="submit">Yes, Clear Everything</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// ── Audio briefing: poll /api/briefing/status every 15s ─────────────────────
+// Shows pulsing dots while generating, auto-swaps in the audio player when ready.
+// Tracks last_generated timestamp — refreshes player src only when a new file arrives.
+var _briefingTs = null;
+
+function renderBriefing(status) {
+  var section = document.getElementById('briefing-section');
+  if (!section) return;
+
+  if (status.generating) {
+    section.innerHTML =
+      '<div class="briefing-loading">' +
+        '<div class="briefing-dots"><span></span><span></span><span></span></div>' +
+        '<span>Updating briefing&hellip;</span>' +
+      '</div>';
+    return;
+  }
+
+  if (status.has_audio) {
+    // Only rebuild the player if the file is actually newer
+    if (_briefingTs !== status.last_generated) {
+      _briefingTs = status.last_generated;
+      // Cache-bust with a hash of the timestamp so the browser reloads the file
+      var bust = status.last_generated ? status.last_generated.replace(/[^0-9]/g, '') : Date.now();
+      section.innerHTML =
+        '<div class="audio-player">' +
+          '<span>&#9654; Daily Briefing</span>' +
+          '<audio controls src="/audio/briefing_latest.mp3?' + bust + '"></audio>' +
+        '</div>';
+    }
+    return;
+  }
+
+  // No audio yet — show manual trigger button
+  section.innerHTML =
+    '<a id="briefingBtn" href="/briefing/generate" class="btn btn-secondary btn-sm">&#9654; Generate Briefing</a>';
+  var btn = document.getElementById('briefingBtn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      section.innerHTML =
+        '<div class="briefing-loading">' +
+          '<div class="briefing-dots"><span></span><span></span><span></span></div>' +
+          '<span>Generating audio briefing, please wait&hellip;</span>' +
+        '</div>';
+    });
+  }
+}
+
+function pollBriefing() {
+  fetch('/api/briefing/status')
+    .then(function(r) { return r.json(); })
+    .then(renderBriefing)
+    .catch(function(){});
+}
+
+pollBriefing();
+setInterval(pollBriefing, 15000);
+</script>
+<script>
+var cd = {{ chart_data | tojson }};
+
+// ── Bar chart: Jobs Discovered (default) / Applications toggler ─────────────
+var _chartDailyInst = null;
+var _currentMode = 'discovered';
+
+function _barColor(mode) {
+  return mode === 'discovered'
+    ? {bg: 'rgba(88,166,255,.25)', border: 'rgba(88,166,255,.85)'}
+    : {bg: 'rgba(63,185,80,.25)', border: 'rgba(63,185,80,.85)'};
+}
+
+function buildDailyChart(mode) {
+  var rows = mode === 'discovered' ? cd.daily_discovered : cd.daily_applications;
+  var labels = rows.map(function(d){return d.date;}).reverse();
+  var data   = rows.map(function(d){return d.count;}).reverse();
+  var col    = _barColor(mode);
+  var canvas = document.getElementById('chartDaily');
+  var empty  = document.getElementById('chartDailyEmpty');
+  var hasData = data.some(function(v){return v > 0;});
+
+  if (mode !== 'discovered' && !hasData) {
+    canvas.style.display = 'none';
+    empty.style.display  = 'block';
+    return;
+  }
+  canvas.style.display = '';
+  empty.style.display  = 'none';
+
+  if (_chartDailyInst) { _chartDailyInst.destroy(); }
+  _chartDailyInst = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: mode === 'discovered' ? 'Jobs Discovered' : 'Applications Sent',
+        data: data,
+        backgroundColor: col.bg,
+        borderColor: col.border,
+        borderWidth: 1,
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#7d8590', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#7d8590', font: { size: 10 }, precision: 0 },
+             beginAtZero: true }
+      }
+    }
+  });
+}
+
+function switchChart(mode) {
+  _currentMode = mode;
+  document.getElementById('chartDailyTitle').textContent =
+    mode === 'discovered' ? 'Jobs Discovered (last 14 days)' : 'Applications Sent (last 14 days)';
+  document.getElementById('btnDiscovered').className =
+    'btn btn-sm ' + (mode === 'discovered' ? 'btn-secondary' : 'btn-ghost');
+  document.getElementById('btnApplied').className =
+    'btn btn-sm ' + (mode === 'applied' ? 'btn-secondary' : 'btn-ghost');
+  buildDailyChart(mode);
+}
+
+buildDailyChart('discovered');
+
+// ── Doughnut chart: Jobs by Source ──────────────────────────────────────────
+var _SOURCE_COLORS = [
+  '#58a6ff', // blue   — LinkedIn
+  '#3fb950', // green  — Glassdoor
+  '#bc8cff', // purple — Indeed
+  '#d29922', // amber  — Naukri
+  '#f0883e', // orange — email_alert
+  '#79c0ff', // light blue
+  '#56d364', // light green
+  '#ff7b72', // red
+];
+
+var sourceLabels = cd.job_sources.map(function(s){ return s.source; });
+var sourceCounts = cd.job_sources.map(function(s){ return s.count; });
+var sourceBg     = sourceLabels.map(function(_, i){ return _SOURCE_COLORS[i % _SOURCE_COLORS.length]; });
+
+var ctxS = document.getElementById('chartSources').getContext('2d');
+new Chart(ctxS, {
+  type: 'doughnut',
+  data: {
+    labels: sourceLabels,
+    datasets: [{ data: sourceCounts, backgroundColor: sourceBg, borderWidth: 2,
+                 borderColor: 'rgba(13,17,23,.6)', hoverOffset: 6 }]
+  },
+  options: {
+    responsive: true,
+    cutout: '62%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: function(ctx) {
+            var total = ctx.dataset.data.reduce(function(a,b){return a+b;}, 0);
+            var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+            return ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString() + ' (' + pct + '%)';
+          }
+        }
+      }
+    }
+  }
+});
+
+// Custom legend below the chart
+var total = sourceCounts.reduce(function(a,b){return a+b;},0);
+var leg = document.getElementById('sourceLegend');
+if (leg) {
+  leg.innerHTML = sourceLabels.map(function(lbl, i) {
+    var pct = total > 0 ? Math.round(sourceCounts[i]/total*100) : 0;
+    return '<span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.76rem;color:var(--text-muted)">' +
+      '<span style="width:10px;height:10px;border-radius:50%;background:' + sourceBg[i] + ';flex-shrink:0"></span>' +
+      '<b style="color:var(--text)">' + lbl + '</b> ' + sourceCounts[i].toLocaleString() + ' <span>(' + pct + '%)</span></span>';
+  }).join('');
+}
+
+// Mini heatmap
+var minimap = L.map('minimap',{zoomControl:false,scrollWheelZoom:false,dragging:false,doubleClickZoom:false,attributionControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:6}).addTo(minimap);
+minimap.setView([20,78],2);
+
+fetch('/api/heatmap').then(function(r){return r.json();}).then(function(pts){
+  pts.forEach(function(p){
+    var r = Math.max(4,Math.min(10,3+Math.log2((p.count||1)+1)*1.2));
+    L.circleMarker([p.lat,p.lng],{
+      radius:r,color:'transparent',fillColor:p.is_india?'#3fb950':'#58a6ff',
+      fillOpacity:.8,weight:0
+    }).bindTooltip(p.city+': '+p.count,{className:'city-label',direction:'top'}).addTo(minimap);
+  });
+  var indiaTop = pts.filter(function(p){return p.is_india;}).slice(0,5);
+  var leg = document.getElementById('legend-india');
+  if(leg && indiaTop.length){
+    leg.innerHTML = '<span class="legend-dot india-dot"></span> ' +
+      indiaTop.map(function(p){return '<span class="legend-city india"><b>'+p.city+'</b> '+p.count+'</span>';}).join('');
+  }
+});
+</script>
+{% endblock %}

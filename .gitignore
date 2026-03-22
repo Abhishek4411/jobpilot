@@ -1,0 +1,48 @@
+# Environment (contains secrets - never commit)
+.env
+
+# Personal config — contains your name, email, phone, full resume data
+config/resume.yaml
+config/qa_bank.yaml
+
+# Database and generated data
+data/jobpilot.db
+data/logs/
+data/audio/
+data/resumes/
+data/resume_embedding.npy
+data/resume_hash.txt
+data/memory/
+
+# Claude Code internal files
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/

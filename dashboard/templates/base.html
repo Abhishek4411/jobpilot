@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JobPilot{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script>
+    (function(){
+      var t = localStorage.getItem('jp-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-brand">JobPilot</span>
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-label">Main</div>
+    </div>
+
+    <a href="{{ url_for('main.index') }}" class="nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+      </span>
+      <span class="nav-label">Dashboard</span>
+    </a>
+
+    <a href="{{ url_for('main.jobs') }}" class="nav-item {% if request.endpoint == 'main.jobs' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+        </svg>
+      </span>
+      <span class="nav-label">Jobs</span>
+    </a>
+
+    <a href="{{ url_for('main.approvals') }}" class="nav-item {% if request.endpoint == 'main.approvals' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+      </span>
+      <span class="nav-label">Approvals</span>
+      <span class="nav-badge" id="nav-approval-badge" style="display:none;">0</span>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Tools</div>
+    </div>
+
+    <a href="{{ url_for('cv.cv_home') }}" class="nav-item {% if request.endpoint and request.endpoint.startswith('cv.') %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </span>
+      <span class="nav-label">Resume / CV</span>
+    </a>
+
+    <a href="{{ url_for('main.emails_page') }}" class="nav-item {% if request.endpoint == 'main.emails_page' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </span>
+      <span class="nav-label">Emails</span>
+    </a>
+
+    <a href="{{ url_for('main.calendar_page') }}" class="nav-item {% if request.endpoint == 'main.calendar_page' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </span>
+      <span class="nav-label">Calendar</span>
+      <span class="nav-badge" id="nav-interview-badge" style="display:none;">0</span>
+    </a>
+
+    <a href="{{ url_for('main.heatmap_page') }}" class="nav-item {% if request.endpoint == 'main.heatmap_page' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+        </svg>
+      </span>
+      <span class="nav-label">Job Heatmap</span>
+    </a>
+
+    <a href="{{ url_for('main.logs') }}" class="nav-item {% if request.endpoint == 'main.logs' %}active{% endif %}">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>
+        </svg>
+      </span>
+      <span class="nav-label">Activity Logs</span>
+    </a>
+
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="nav-item" style="cursor:default;font-size:.72rem;">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/>
+        </svg>
+      </span>
+      <span class="nav-label" style="color:var(--text-muted);">Abhishek Patel</span>
+    </div>
+  </div>
+</aside>
+
+<div class="main-wrap" id="mainWrap">
+  <div class="topbar">
+    <span class="topbar-title">{% block topbar_title %}{% endblock %}</span>
+    <span class="topbar-spacer"></span>
+    <span class="live-indicator" id="live-clock"></span>
+    <button class="theme-btn" id="themeToggle">
+      <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <span id="themeLabel">Light</span>
+    </button>
+  </div>
+
+  <!-- Manual action banner (automation failures needing user attention) -->
+  <div class="action-banner" id="action-banner">
+    <div class="action-banner-row">
+      <span class="action-banner-title">&#9888; Action Needed</span>
+      <button class="action-banner-close" onclick="closeBanner()">&#x2715;</button>
+    </div>
+    <div id="action-banner-items"></div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+// -- Sidebar toggle -----------------------------------------------------------
+var sidebar = document.getElementById('sidebar');
+var mainWrap = document.getElementById('mainWrap');
+var collapsed = localStorage.getItem('jp-sidebar-collapsed') === 'true';
+if (collapsed) sidebar.classList.add('collapsed');
+
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+  sidebar.classList.toggle('collapsed');
+  localStorage.setItem('jp-sidebar-collapsed', sidebar.classList.contains('collapsed'));
+});
+
+// -- Theme toggle ------------------------------------------------------------
+var html = document.documentElement;
+var themeLabel = document.getElementById('themeLabel');
+function applyTheme(t) {
+  html.setAttribute('data-theme', t);
+  localStorage.setItem('jp-theme', t);
+  themeLabel.textContent = t === 'dark' ? 'Light' : 'Dark';
+}
+applyTheme(localStorage.getItem('jp-theme') || 'dark');
+document.getElementById('themeToggle').addEventListener('click', function() {
+  applyTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+// -- Live clock --------------------------------------------------------------
+function updateClock() {
+  document.getElementById('live-clock').textContent = new Date().toLocaleTimeString();
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// -- Flash messages: close button + smooth GPU-composited exit ---------------
+function dismissFlash(el) {
+  if (!el || el.classList.contains('exiting')) return;
+  el.classList.add('exiting');
+  // Wait for animation (220ms) then remove from DOM
+  setTimeout(function() { if (el && el.parentNode) el.parentNode.removeChild(el); }, 240);
+}
+document.querySelectorAll('.flash').forEach(function(el, idx) {
+  // Wrap text + inject × button
+  var body = el.innerHTML;
+  el.innerHTML =
+    '<span class="flash-body">' + body + '</span>' +
+    '<button class="flash-close" aria-label="Close" onclick="dismissFlash(this.parentNode)">&#x2715;</button>';
+  // Stagger entry slightly so multiple toasts don't all arrive at once
+  el.style.animationDelay = (idx * 80) + 'ms';
+  // Auto-dismiss after 5s (+ stagger offset)
+  setTimeout(function() { dismissFlash(el); }, 5000 + idx * 80);
+});
+
+// -- Approval badge (pending emails + matched jobs) --------------------------
+function updateApprovalBadge() {
+  fetch('/api/approvals/count')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var total = (data.emails || 0) + (data.jobs || 0);
+      var badge = document.getElementById('nav-approval-badge');
+      if (badge) {
+        if (total > 0) { badge.textContent = total; badge.style.display = 'inline'; }
+        else { badge.style.display = 'none'; }
+      }
+    })
+    .catch(function(){});
+}
+updateApprovalBadge();
+setInterval(updateApprovalBadge, 30000);
+
+// -- Manual action notification banner ---------------------------------------
+var _bannerClosedUntil = parseInt(localStorage.getItem('jp-banner-closed-until') || '0', 10);
+
+function updateActionBanner() {
+  if (Date.now() < _bannerClosedUntil) return;
+  fetch('/api/notifications')
+    .then(function(r) { return r.json(); })
+    .then(function(items) {
+      var banner = document.getElementById('action-banner');
+      var list = document.getElementById('action-banner-items');
+      if (!items || items.length === 0) { banner.classList.remove('visible'); return; }
+      banner.classList.add('visible');
+      list.innerHTML = items.slice(0,5).map(function(item) {
+        return '<div class="action-item" id="aitem-' + item.id + '">' +
+          '<span class="action-item-text">' + item.title + '</span>' +
+          (item.subtitle ? '<span class="text-muted" style="font-size:.74rem;">' + item.subtitle + '</span>' : '') +
+          (item.url ? '<a href="' + item.url + '" target="_blank" class="btn btn-warn btn-sm">' + item.action + '</a>' : '') +
+          '<button onclick="dismissAction(' + item.id + ')" class="btn btn-ghost btn-sm">Dismiss</button>' +
+          '</div>';
+      }).join('');
+    })
+    .catch(function(){});
+}
+function closeBanner() {
+  document.getElementById('action-banner').classList.remove('visible');
+  _bannerClosedUntil = Date.now() + 86400000;
+  localStorage.setItem('jp-banner-closed-until', _bannerClosedUntil);
+}
+function dismissAction(id) {
+  fetch('/dismiss/notification/' + id, {method:'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        var el = document.getElementById('aitem-' + id);
+        if (el) el.remove();
+        if (!document.querySelector('.action-item')) {
+          document.getElementById('action-banner').classList.remove('visible');
+        }
+      }
+    })
+    .catch(function(){});
+}
+updateActionBanner();
+setInterval(updateActionBanner, 60000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

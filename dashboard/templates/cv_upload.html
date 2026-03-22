@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Upload CV - JobPilot{% endblock %}
+{% block content %}
+<h1 class="page-title">Upload Resume</h1>
+
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <form method="post" enctype="multipart/form-data" id="upload-form">
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">&#128196;</div>
+      <p>Drag and drop your resume here</p>
+      <p class="text-muted">or</p>
+      <label class="btn btn-primary" for="file-input">Browse Files</label>
+      <input type="file" id="file-input" name="resume" accept=".pdf,.docx,.txt" style="display:none">
+      <p class="text-muted" style="margin-top:1rem">Supported: PDF, DOCX, TXT</p>
+    </div>
+    <div id="file-preview" style="display:none; margin-top:1rem;">
+      <p>Selected: <strong id="file-name"></strong></p>
+      <button class="btn btn-success" type="submit">Parse Resume</button>
+      <a href="#" onclick="resetUpload()" class="btn btn-secondary">Clear</a>
+    </div>
+  </form>
+  <div style="margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem;">
+    <p class="text-muted">Want to start with a template?
+      <a href="{{ url_for('cv.sample') }}">Download blank template</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const filePreview = document.getElementById('file-preview');
+  const fileName = document.getElementById('file-name');
+
+  function showFile(name) {
+    fileName.textContent = name;
+    dropZone.style.display = 'none';
+    filePreview.style.display = 'block';
+  }
+
+  function resetUpload() {
+    fileInput.value = '';
+    dropZone.style.display = 'block';
+    filePreview.style.display = 'none';
+  }
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) showFile(e.target.files[0].name);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      showFile(file.name);
+    }
+  });
+</script>
+{% endblock %}

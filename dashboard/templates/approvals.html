@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Approvals - JobPilot{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Approvals</h1>
+    <div class="page-subtitle">Review and act on all pending items</div>
+  </div>
+  <span class="live-indicator" id="live-indicator">Live updates every 30s</span>
+</div>
+
+{# ── Email Replies ─────────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Email Replies</span>
+    <span class="badge badge-default" id="email-count">{{ emails|length }}</span>
+  </div>
+  <div id="email-cards">
+  {% for em in emails %}
+  <div class="approval-card">
+    <div class="approval-header">
+      <strong style="flex:1">{{ em.subject or '(no subject)' }}</strong>
+      <span class="badge badge-{{ em.category }}">{{ em.category.replace('_',' ') }}</span>
+    </div>
+    <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">
+      From: {{ em.sender[:80] if em.sender else '—' }}
+    </div>
+    <div class="approval-draft">
+      <div class="label" style="margin-bottom:.3rem;">Draft Reply</div>
+      <p>{{ em.reply_draft }}</p>
+    </div>
+    <div class="approval-actions">
+      <form method="post" action="{{ url_for('main.approve_email', email_id=em.id) }}" style="display:inline">
+        <button class="btn btn-success" type="submit">Send Reply</button>
+      </form>
+      <form method="post" action="{{ url_for('main.reject_email', email_id=em.id) }}" style="display:inline">
+        <button class="btn btn-danger" type="submit">Discard</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div style="font-size:1.5rem;margin-bottom:.4rem;">📭</div>
+    <div>No emails pending approval. New recruiter emails appear here automatically.</div>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+
+{# ── Job Applications ──────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="section-header">
+    <span class="section-title">Job Applications — Pending Approval</span>
+    <span class="badge badge-default" id="job-count">{{ jobs|length }}</span>
+  </div>
+  {% if not jobs %}
+  <div class="empty-state">
+    <div style="font-size:1.5rem;margin-bottom:.4rem;">🎯</div>
+    <div>No matched jobs awaiting approval.</div>
+    <div style="font-size:.8rem;margin-top:.4rem;color:var(--text-muted)">
+      Jobs appear here when their match score reaches the threshold ({{ threshold_pct }}%).
+      Lower the threshold in <code>config/settings.yaml</code> → <code>matching.threshold</code> if no jobs appear.
+    </div>
+  </div>
+  {% endif %}
+  <div id="job-cards">
+  {% for job in jobs %}
+  {# -- parse tags from notes -- #}
+  {% set notes_str = job.notes or '' %}
+  {% set is_easy = 'easy_apply' in notes_str %}
+  {% set work_tag = 'Hybrid' if 'hybrid' in notes_str.lower() else ('Remote' if 'remote' in notes_str.lower() else ('On-site' if 'onsite' in notes_str.lower() else '')) %}
+  {% set from_email = 'from_email=' in notes_str %}
+
+  <div class="approval-card job-appr-card">
+    {# Score + Title header #}
+    <div class="job-appr-header">
+      <div class="job-appr-score {% if job.match_score >= 0.65 %}score-circle--high{% elif job.match_score >= 0.4 %}score-circle--mid{% else %}score-circle--low{% endif %}">
+        {{ "%.0f"|format((job.match_score or 0) * 100) }}%
+      </div>
+      <div class="job-appr-info">
+        <div class="job-appr-title">
+          {% if job.url %}
+          <a href="{{ job.url }}" target="_blank" class="job-title">{{ job.title or '(No title)' }}</a>
+          {% else %}
+          <span>{{ job.title or '(No title)' }}</span>
+          {% endif %}
+        </div>
+        <div class="job-appr-company">
+          {{ job.company or '?' }}
+          {% if job.location %} &bull; {{ job.location }}{% endif %}
+        </div>
+        <div class="job-appr-badges">
+          <span class="badge badge-default">{{ job.source or 'unknown' }}</span>
+          {% if is_easy %}<span class="tag-pill tag-easy">⚡ Easy Apply</span>{% endif %}
+          {% if work_tag %}<span class="tag-pill tag-{% if work_tag=='Remote' %}remote{% elif work_tag=='Hybrid' %}hybrid{% else %}onsite{% endif %}">{{ work_tag }}</span>{% endif %}
+          {% if from_email %}<span class="tag-pill tag-email">📧 From Alert</span>{% endif %}
+          {% if job.salary_min %}<span class="tag-pill tag-salary">₹{{ "%.0f"|format(job.salary_min/100000) }}–{{ "%.0f"|format((job.salary_max or job.salary_min)/100000) }}L</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Job description snippet #}
+    {% if job.jd_text %}
+    <details class="jd-details" style="margin:.5rem 0;">
+      <summary>View Job Description</summary>
+      <p class="jd-text">{{ job.jd_text[:700] }}{% if job.jd_text|length > 700 %}…{% endif %}</p>
+    </details>
+    {% elif notes_str and 'from_email=' in notes_str %}
+    <div style="font-size:.78rem;color:var(--text-muted);margin:.35rem 0 .5rem;">
+      {{ notes_str | replace('work_type=','Type: ') | replace('apply_type=','Apply: ') | replace(',','  •') }}
+    </div>
+    {% endif %}
+
+    <div class="approval-actions">
+      {% if job.url %}
+      <a href="{{ job.url }}" target="_blank" class="btn btn-secondary">Open Job ↗</a>
+      {% endif %}
+      <form method="post" action="{{ url_for('main.approve_job', job_id=job.id) }}" style="display:inline">
+        <button class="btn btn-success" type="submit">✓ Approve &amp; Apply</button>
+      </form>
+      <form method="post" action="{{ url_for('main.reject_job', job_id=job.id) }}" style="display:inline">
+        <button class="btn btn-danger" type="submit">✗ Skip</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lastEmailCount = {{ emails|length }};
+let lastJobCount = {{ jobs|length }};
+
+function pollApprovals() {
+  fetch('/api/approvals/count')
+    .then(r => r.json())
+    .then(data => {
+      const ne = data.emails || 0, nj = data.jobs || 0;
+      document.getElementById('email-count').textContent = ne;
+      document.getElementById('job-count').textContent = nj;
+      if (ne > lastEmailCount || nj > lastJobCount) { location.reload(); }
+      lastEmailCount = ne; lastJobCount = nj;
+      document.getElementById('live-indicator').textContent =
+        'Updated ' + new Date().toLocaleTimeString();
+    })
+    .catch(() => {});
+}
+setInterval(pollApprovals, 30000);
+</script>
+{% endblock %}

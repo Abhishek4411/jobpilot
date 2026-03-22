@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Jobs - JobPilot{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Jobs</h1>
+    <div class="page-subtitle">Click any job title or "Open" to go directly to the posting</div>
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <input class="input" type="text" name="q" placeholder="Search title or company..." value="{{ search }}">
+  <select class="select" name="status">
+    <option value="">All Status</option>
+    {% for s in ['discovered','scored','matched','approved','applied','skipped'] %}
+    <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
+    {% endfor %}
+  </select>
+  <select class="select" name="source">
+    <option value="">All Sources</option>
+    {% for s in ['linkedin','indeed','glassdoor','naukri','email_alert'] %}
+    <option value="{{ s }}" {% if source_filter == s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">Filter</button>
+  {% if status_filter or source_filter or search %}
+  <a href="{{ url_for('main.jobs') }}" class="btn btn-secondary">Clear</a>
+  {% endif %}
+</form>
+
+<div class="table-viewport">
+  <div class="table-wrap" style="overflow-x:hidden">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:60px">Score</th>
+          <th>Job Title &amp; Company</th>
+          <th>Location</th>
+          <th>Tags</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th style="width:180px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        {# -- parse work_type and apply_type from notes field -- #}
+        {% set notes_str = job.notes or '' %}
+        {% set is_easy = 'easy_apply' in notes_str %}
+        {% set is_hybrid = 'hybrid' in notes_str.lower() %}
+        {% set is_remote = 'remote' in notes_str.lower() %}
+        {% set is_onsite = 'onsite' in notes_str.lower() %}
+        {% set from_email = 'from_email=' in notes_str %}
+
+        <tr class="job-row" id="jr-{{ job.id }}">
+          <td>
+            {% if job.match_score %}
+            <span class="score {% if job.match_score >= 0.65 %}score--high{% elif job.match_score >= 0.4 %}score--mid{% else %}score--low{% endif %}">
+              {{ "%.0f"|format(job.match_score * 100) }}%
+            </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            <div>
+              {% if job.url %}
+              <a href="{{ job.url }}" target="_blank" class="job-title">{{ job.title or '(No title)' }}</a>
+              {% else %}
+              <span class="job-title" style="color:var(--text)">{{ job.title or '(No title)' }}</span>
+              {% endif %}
+              {% if job.company %}
+              <div style="font-size:.76rem;color:var(--text-muted);margin-top:1px;">{{ job.company }}</div>
+              {% endif %}
+            </div>
+          </td>
+          <td class="text-muted" style="font-size:.82rem;">{{ job.location or '—' }}</td>
+          <td>
+            {% if is_easy %}<span class="tag-pill tag-easy">&#9889; Easy Apply</span>{% endif %}
+            {% if is_hybrid %}<span class="tag-pill tag-hybrid">Hybrid</span>
+            {% elif is_remote %}<span class="tag-pill tag-remote">Remote</span>
+            {% elif is_onsite %}<span class="tag-pill tag-onsite">On-site</span>{% endif %}
+            {% if from_email %}<span class="tag-pill tag-email">Email Alert</span>{% endif %}
+          </td>
+          <td><span class="badge badge-default">{{ job.source or '?' }}</span></td>
+          <td><span class="badge badge-status badge-{{ job.status }}">{{ job.status }}</span></td>
+          <td>
+            <div style="display:flex;gap:.28rem;flex-wrap:wrap;">
+              {% if job.url %}
+              <a href="{{ job.url }}" target="_blank" class="btn btn-sm btn-secondary" title="Open job posting">Open &#8599;</a>
+              {% endif %}
+              {% if job.status == 'matched' %}
+              <form method="post" action="{{ url_for('main.approve_job', job_id=job.id) }}" style="display:inline">
+                <button class="btn btn-sm btn-success" type="submit">&#10003;</button>
+              </form>
+              <form method="post" action="{{ url_for('main.reject_job', job_id=job.id) }}" style="display:inline">
+                <button class="btn btn-sm btn-danger" type="submit">&#10007;</button>
+              </form>
+              {% endif %}
+              <button class="btn btn-sm btn-ghost" onclick="toggleDetail({{ job.id }})" id="dtbtn-{{ job.id }}" title="Show details">&#9660;</button>
+            </div>
+          </td>
+        </tr>
+
+        {# -- Expandable detail row -- #}
+        <tr class="job-detail-row" id="jd-{{ job.id }}" style="display:none">
+          <td colspan="7" style="padding:0">
+            <div class="job-detail-panel">
+              <div class="job-detail-grid">
+                {% if job.notes %}
+                <div class="job-detail-item">
+                  <span class="label">Details</span>
+                  <span>{{ job.notes }}</span>
+                </div>
+                {% endif %}
+                {% if job.salary_min or job.salary_max %}
+                <div class="job-detail-item">
+                  <span class="label">Salary</span>
+                  <span>
+                    {% if job.salary_min %}&#8377;{{ "%.0f"|format(job.salary_min / 100000) }}L{% endif %}
+                    {% if job.salary_max %} – &#8377;{{ "%.0f"|format(job.salary_max / 100000) }}L PA{% endif %}
+                  </span>
+                </div>
+                {% endif %}
+                <div class="job-detail-item">
+                  <span class="label">Discovered</span>
+                  <span class="text-muted">{{ job.discovered_at[:19] if job.discovered_at else '—' }}</span>
+                </div>
+              </div>
+              {% if job.jd_text %}
+              <div style="margin-top:.6rem;">
+                <span class="label">Job Description</span>
+                <p class="jd-text">{{ job.jd_text[:800] }}{% if job.jd_text|length > 800 %}…{% endif %}</p>
+              </div>
+              {% endif %}
+              <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+                {% if job.url %}
+                <a href="{{ job.url }}" target="_blank" class="btn btn-primary btn-sm">Apply Now &#8599;</a>
+                {% endif %}
+                {% if job.status == 'matched' %}
+                <form method="post" action="{{ url_for('main.approve_job', job_id=job.id) }}" style="display:inline">
+                  <button class="btn btn-success btn-sm" type="submit">Approve to Apply</button>
+                </form>
+                <form method="post" action="{{ url_for('main.reject_job', job_id=job.id) }}" style="display:inline">
+                  <button class="btn btn-danger btn-sm" type="submit">Skip Job</button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">
+          No jobs found. Adjust filters or wait for the next scout cycle.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="pagination-bar" id="paginationBar" style="display:none">
+  <button onclick="changePage(-1)" id="prevBtn">&#8592; Prev</button>
+  <span id="pageInfo"></span>
+  <div id="pageNumbers"></div>
+  <button onclick="changePage(1)" id="nextBtn">Next &#8594;</button>
+  <span class="page-count-info" id="totalInfo"></span>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<style>
+.table-viewport {
+  height: calc(100vh - 220px);
+  overflow-y: auto;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+}
+.table-viewport .table-wrap {
+  border: none;
+  border-radius: 0;
+}
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  flex-wrap: wrap;
+}
+.pagination-bar button {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  padding: .25rem .6rem;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.pagination-bar button:disabled { opacity: .4; cursor: default; }
+.pagination-bar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pagination-bar #pageNumbers { display: flex; gap: .25rem; align-items: center; }
+.pagination-bar #pageNumbers span { color: var(--text-muted); padding: 0 .2rem; }
+.pagination-bar .page-count-info { color: var(--text-muted); font-size: .76rem; margin-left: auto; }
+</style>
+<script>
+function toggleDetail(id) {
+  var row = document.getElementById('jd-' + id);
+  var btn = document.getElementById('dtbtn-' + id);
+  var open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : 'table-row';
+  btn.innerHTML = open ? '&#9660;' : '&#9650;';
+}
+
+/* ── Pagination ── */
+var PER_PAGE = 25;
+var currentPage = 1;
+var allRows = [];
+
+function initPagination() {
+  var tbody = document.querySelector('.table tbody');
+  if (!tbody) return;
+  var rows = Array.from(tbody.querySelectorAll('tr.job-row'));
+  if (rows.length <= PER_PAGE) return;
+  allRows = rows;
+  document.getElementById('paginationBar').style.display = 'flex';
+  renderPage(1);
+}
+
+function renderPage(page) {
+  currentPage = page;
+  var start = (page - 1) * PER_PAGE;
+  var end = start + PER_PAGE;
+  allRows.forEach(function(row, i) {
+    var jobId = row.id.replace('jr-', '');
+    var detailRow = document.getElementById('jd-' + jobId);
+    var show = i >= start && i < end;
+    row.style.display = show ? '' : 'none';
+    if (detailRow) detailRow.style.display = 'none'; // collapse detail on page change
+  });
+  updatePaginationUI(page);
+}
+
+function updatePaginationUI(page) {
+  var total = Math.ceil(allRows.length / PER_PAGE);
+  document.getElementById('prevBtn').disabled = page === 1;
+  document.getElementById('nextBtn').disabled = page === total;
+  document.getElementById('pageInfo').textContent = 'Page ' + page + ' of ' + total;
+  document.getElementById('totalInfo').textContent = allRows.length + ' total jobs';
+
+  var nums = document.getElementById('pageNumbers');
+  nums.innerHTML = '';
+  var pageSet = new Set([1, total]);
+  for (var i = Math.max(1, page - 2); i <= Math.min(total, page + 2); i++) pageSet.add(i);
+  var sortedPages = Array.from(pageSet).sort(function(a, b){ return a - b; });
+  sortedPages.forEach(function(p, idx, arr) {
+    if (idx > 0 && p > arr[idx - 1] + 1) {
+      var ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      nums.appendChild(ellipsis);
+    }
+    var btn = document.createElement('button');
+    btn.textContent = p;
+    btn.className = p === page ? 'active' : '';
+    (function(pg){ btn.onclick = function(){ renderPage(pg); }; })(p);
+    nums.appendChild(btn);
+  });
+}
+
+function changePage(dir) { renderPage(currentPage + dir); }
+
+window.addEventListener('DOMContentLoaded', initPagination);
+</script>
+{% endblock %}

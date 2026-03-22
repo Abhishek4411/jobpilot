@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}CV Preview - JobPilot{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+  <h1 class="page-title" style="margin:0">Resume Preview</h1>
+  <div style="display:flex; gap:0.5rem;">
+    <a href="{{ url_for('cv.download_resume') }}" class="btn btn-primary">Download PDF</a>
+    <a href="{{ url_for('cv.edit') }}" class="btn btn-secondary">Edit</a>
+    <a href="{{ url_for('cv.upload') }}" class="btn btn-secondary">Re-upload</a>
+  </div>
+</div>
+
+{% if resume %}
+<div class="resume-card">
+  {% set p = resume.get('personal', {}) %}
+  <div class="resume-header">
+    <h2>{{ p.get('name', 'Unknown') }}</h2>
+    <p class="resume-title">{{ p.get('current_title', '') }}</p>
+    <div class="resume-contact">
+      {% if p.get('email') %}<span>{{ p.email }}</span>{% endif %}
+      {% if p.get('phone') %}<span>{{ p.phone }}</span>{% endif %}
+      {% if p.get('location') %}<span>{{ p.location }}</span>{% endif %}
+      {% if p.get('total_experience') %}<span>{{ p.total_experience }} experience</span>{% endif %}
+    </div>
+  </div>
+
+  {% if resume.get('profile_summary') %}
+  <div class="resume-section">
+    <h3>Profile Summary</h3>
+    <p>{{ resume.profile_summary }}</p>
+  </div>
+  {% endif %}
+
+  {% if resume.get('skills') %}
+  <div class="resume-section">
+    <h3>Skills</h3>
+    {% set skills = resume.skills %}
+    {% if skills is mapping %}
+      {% for category, skill_list in skills.items() %}
+        {% if skill_list %}
+        <div class="skill-group">
+          <span class="skill-category">{{ category.replace('_', ' ').title() }}:</span>
+          {% for skill in skill_list %}
+          <span class="skill-tag">{{ skill }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      {% for skill in skills %}
+      <span class="skill-tag">{{ skill }}</span>
+      {% endfor %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('experience') %}
+  <div class="resume-section">
+    <h3>Experience</h3>
+    {% for exp in resume.experience %}
+    <div class="exp-entry">
+      <div class="exp-header">
+        <strong>{{ exp.get('title', '') }}</strong>
+        <span class="text-muted">@ {{ exp.get('company', '') }}</span>
+        <span class="text-muted" style="margin-left:auto">{{ exp.get('duration', '') }}</span>
+      </div>
+      {% if exp.get('highlights') %}
+      <ul class="exp-list">
+        {% for h in exp.highlights %}<li>{{ h }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('education') %}
+  <div class="resume-section">
+    <h3>Education</h3>
+    {% for edu in resume.education %}
+    <p><strong>{{ edu.get('degree', '') }}</strong> - {{ edu.get('institution', '') }} ({{ edu.get('year', '') }})</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('certifications') %}
+  <div class="resume-section">
+    <h3>Certifications</h3>
+    {% for cert in resume.certifications %}
+    <span class="skill-tag">{{ cert }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('projects') %}
+  <div class="resume-section">
+    <h3>Projects</h3>
+    {% for proj in resume.projects %}
+    <div class="exp-entry">
+      <div class="exp-header">
+        <strong>{{ proj.get('name', '') }}</strong>
+        {% if proj.get('duration') %}<span class="text-muted">{{ proj.duration }}</span>{% endif %}
+      </div>
+      {% if proj.get('highlights') %}
+      <ul class="exp-list">
+        {% for h in proj.highlights %}<li>{{ h }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('internships') %}
+  <div class="resume-section">
+    <h3>Internships</h3>
+    {% for intern in resume.internships %}
+    <div class="exp-entry">
+      <div class="exp-header">
+        <strong>{{ intern.get('title', '') }}</strong>
+        <span class="text-muted">@ {{ intern.get('company', '') }}</span>
+        {% if intern.get('duration') %}<span class="text-muted" style="margin-left:auto">{{ intern.duration }}</span>{% endif %}
+      </div>
+      {% if intern.get('highlights') %}
+      <ul class="exp-list">
+        {% for h in intern.highlights %}<li>{{ h }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if resume.get('languages') %}
+  <div class="resume-section">
+    <h3>Languages</h3>
+    {% for lang in resume.languages %}
+    <span class="skill-tag">{{ lang }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No resume loaded yet.</p>
+  <a href="{{ url_for('cv.upload') }}" class="btn btn-primary">Upload Resume</a>
+</div>
+{% endif %}
+{% endblock %}

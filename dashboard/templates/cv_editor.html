@@ -1,0 +1,994 @@
+{% extends "base.html" %}
+{% block title %}Edit Resume - JobPilot{% endblock %}
+
+{% block content %}
+
+<!-- ── Compact top action bar (bleeds out of main-content padding) ── -->
+<div class="cve-topbar">
+  <span class="cve-topbar-title">Resume Editor</span>
+  <span class="cve-topbar-sub">config/resume.yaml</span>
+  <div style="flex:1"></div>
+  <button class="btn btn-secondary btn-sm" onclick="toggleRaw()" id="rawToggleBtn">Raw YAML</button>
+  <a href="{{ url_for('cv.upload') }}" class="btn btn-secondary btn-sm">Re-upload</a>
+  <button class="btn btn-success btn-sm" onclick="saveResume()">Save Changes</button>
+</div>
+
+<!-- ── Raw YAML panel (hidden by default, shown above layout) ── -->
+<div id="rawPanel" class="cve-raw-panel" style="display:none">
+  <div class="cve-raw-toolbar">
+    <span style="font-size:.82rem;font-weight:600;">Raw YAML</span>
+    <button class="btn btn-sm btn-secondary" onclick="syncRawFromForm()">Sync from form</button>
+    <button class="btn btn-sm btn-secondary" onclick="toggleRaw()">Close</button>
+  </div>
+  <textarea id="raw-yaml" class="cve-raw-textarea" rows="30" spellcheck="false"></textarea>
+</div>
+
+<!-- ── Main layout: left nav + panel area ── -->
+<div class="cve-layout">
+
+  <!-- Left section nav -->
+  <nav class="cve-nav" id="cveNav">
+    <div class="cve-nav-item active" onclick="showSection('sec-personal', this)">Personal</div>
+    <div class="cve-nav-item" onclick="showSection('sec-summary', this)">Summary</div>
+    <div class="cve-nav-item" onclick="showSection('sec-skills', this)">Skills</div>
+    <div class="cve-nav-item" onclick="showSection('sec-experience', this)">Experience</div>
+    <div class="cve-nav-item" onclick="showSection('sec-internships', this)">Internships</div>
+    <div class="cve-nav-item" onclick="showSection('sec-education', this)">Education</div>
+    <div class="cve-nav-item" onclick="showSection('sec-certifications', this)">Certifications</div>
+    <div class="cve-nav-item" onclick="showSection('sec-projects', this)">Projects</div>
+    <div class="cve-nav-item" onclick="showSection('sec-languages', this)">Languages</div>
+  </nav>
+
+  <!-- Section panels -->
+  <div class="cve-panels">
+
+    <!-- ── 1. PERSONAL ── -->
+    <div class="cve-panel active" id="sec-personal">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span class="cve-card-title">Personal Information</span>
+        </div>
+        <div class="cve-card-body">
+          <div class="cve-grid2">
+            <div class="cve-field">
+              <label>Full Name</label>
+              <input id="p_name" type="text" value="{{ resume.personal.name or '' }}">
+            </div>
+            <div class="cve-field">
+              <label>Current Title</label>
+              <input id="p_title" type="text" value="{{ resume.personal.current_title or '' }}">
+            </div>
+            <div class="cve-field">
+              <label>Email</label>
+              <input id="p_email" type="email" value="{{ resume.personal.email or '' }}">
+            </div>
+            <div class="cve-field">
+              <label>Phone</label>
+              <input id="p_phone" type="text" value="{{ resume.personal.phone or '' }}">
+            </div>
+            <div class="cve-field">
+              <label>Location</label>
+              <input id="p_location" type="text" value="{{ resume.personal.location or '' }}">
+            </div>
+            <div class="cve-field">
+              <label>Total Experience</label>
+              <input id="p_exp" type="text" value="{{ resume.personal.total_experience or '' }}" placeholder="e.g. 5 Years 6 Months">
+            </div>
+            <div class="cve-field">
+              <label>LinkedIn URL</label>
+              <input id="p_linkedin" type="url" value="{{ resume.personal.linkedin or '' }}" placeholder="https://linkedin.com/in/...">
+            </div>
+            <div class="cve-field">
+              <label>GitHub URL</label>
+              <input id="p_github" type="url" value="{{ resume.personal.github or '' }}" placeholder="https://github.com/...">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-personal -->
+
+    <!-- ── 2. PROFILE SUMMARY ── -->
+    <div class="cve-panel" id="sec-summary">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="cve-card-title">Profile Summary</span>
+        </div>
+        <div class="cve-card-body">
+          <div class="cve-field">
+            <label>Summary <span id="summary_count" class="cve-charcount">0 chars</span></label>
+            <textarea id="p_summary" rows="12" oninput="updateCharCount()">{{ resume.profile_summary or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-summary -->
+
+    <!-- ── 3. SKILLS ── -->
+    <div class="cve-panel" id="sec-skills">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="cve-card-title">Skills</span>
+        </div>
+        <div class="cve-card-body">
+          {% set skill_cats = [
+            ('primary',        'Core / Technical',  '#3b82f6', 'skill-blue'),
+            ('ai_ml',          'AI / ML',           '#8b5cf6', 'skill-purple'),
+            ('programming',    'Programming',       '#10b981', 'skill-green'),
+            ('databases_tools','Databases & Tools', '#f59e0b', 'skill-amber'),
+            ('domain',         'Domain Knowledge',  '#ec4899', 'skill-pink'),
+          ] %}
+          {% for key, label, color, cls in skill_cats %}
+          <div class="cve-skill-group" data-cat="{{ key }}">
+            <div class="cve-skill-group-header">
+              <span class="cve-skill-dot" style="background:{{ color }}"></span>
+              <strong>{{ label }}</strong>
+            </div>
+            <div class="cve-tags" id="tags_{{ key }}">
+              {% for skill in (resume.skills[key] if resume.skills and key in resume.skills else []) %}
+              <span class="cve-tag {{ cls }}">{{ skill }}<button type="button" onclick="removeTag(this)">x</button></span>
+              {% endfor %}
+              <input class="cve-tag-input" type="text" placeholder="Add skill..." data-cat="{{ key }}"
+                     onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTag(this)}">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div><!-- /sec-skills -->
+
+    <!-- ── 4. EXPERIENCE ── -->
+    <div class="cve-panel" id="sec-experience">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+          <span class="cve-card-title">Work Experience</span>
+          <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto" onclick="addExperience()">+ Add</button>
+        </div>
+        <div class="cve-card-body" id="exp-list">
+          {% for exp in resume.experience or [] %}
+          <div class="cve-entry" data-type="experience">
+            <div class="cve-entry-header">
+              <div class="cve-entry-meta">
+                <input class="cve-input-title" type="text" value="{{ exp.title or '' }}" placeholder="Job Title">
+                <input class="cve-input-company" type="text" value="{{ exp.company or '' }}" placeholder="Company">
+              </div>
+              <div class="cve-entry-controls">
+                <input class="cve-input-sm" type="text" value="{{ exp.duration or '' }}" placeholder="Duration">
+                <input class="cve-input-sm" type="text" value="{{ exp.location or '' }}" placeholder="Location">
+                <input class="cve-input-sm" type="text" value="{{ exp.type or 'Full-time' }}" placeholder="Type">
+                <button type="button" class="cve-del-btn" onclick="removeEntry(this)" title="Remove">x</button>
+              </div>
+            </div>
+            <div class="cve-highlights">
+              {% for h in exp.highlights or [] %}
+              <div class="cve-highlight-row">
+                <span class="cve-bullet">|</span>
+                <textarea class="cve-highlight-input" rows="2">{{ h }}</textarea>
+                <button type="button" class="cve-del-small" onclick="removeHighlight(this)">x</button>
+              </div>
+              {% endfor %}
+              <button type="button" class="cve-add-highlight" onclick="addHighlight(this)">+ Add bullet</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div><!-- /sec-experience -->
+
+    <!-- ── 5. INTERNSHIPS ── -->
+    <div class="cve-panel" id="sec-internships">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="cve-card-title">Internships</span>
+          <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto" onclick="addInternship()">+ Add</button>
+        </div>
+        <div class="cve-card-body" id="intern-list">
+          {% for intern in resume.internships or [] %}
+          <div class="cve-entry" data-type="internship">
+            <div class="cve-entry-header">
+              <div class="cve-entry-meta">
+                <input class="cve-input-title" type="text" value="{{ intern.title or '' }}" placeholder="Role Title">
+                <input class="cve-input-company" type="text" value="{{ intern.company or '' }}" placeholder="Company">
+              </div>
+              <div class="cve-entry-controls">
+                <input class="cve-input-sm" type="text" value="{{ intern.duration or '' }}" placeholder="Duration">
+                <button type="button" class="cve-del-btn" onclick="removeEntry(this)" title="Remove">x</button>
+              </div>
+            </div>
+            <div class="cve-highlights">
+              {% for h in intern.highlights or [] %}
+              <div class="cve-highlight-row">
+                <span class="cve-bullet">|</span>
+                <textarea class="cve-highlight-input" rows="2">{{ h }}</textarea>
+                <button type="button" class="cve-del-small" onclick="removeHighlight(this)">x</button>
+              </div>
+              {% endfor %}
+              <button type="button" class="cve-add-highlight" onclick="addHighlight(this)">+ Add bullet</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div><!-- /sec-internships -->
+
+    <!-- ── 6. EDUCATION ── -->
+    <div class="cve-panel" id="sec-education">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <span class="cve-card-title">Education</span>
+          <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto" onclick="addEducation()">+ Add</button>
+        </div>
+        <div class="cve-card-body" id="edu-list">
+          {% for edu in resume.education or [] %}
+          <div class="cve-edu-row">
+            <input type="text" class="cve-input-degree" value="{{ edu.degree or '' }}" placeholder="Degree / Level">
+            <input type="text" class="cve-input-institution" value="{{ edu.institution or '' }}" placeholder="Institution">
+            <input type="text" class="cve-input-year" value="{{ edu.year or '' }}" placeholder="Year">
+            <input type="text" class="cve-input-score" value="{{ edu.score or '' }}" placeholder="Score / CGPA">
+            <button type="button" class="cve-del-btn" onclick="this.closest('.cve-edu-row').remove()">x</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div><!-- /sec-education -->
+
+    <!-- ── 7. CERTIFICATIONS ── -->
+    <div class="cve-panel" id="sec-certifications">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+          <span class="cve-card-title">Certifications</span>
+        </div>
+        <div class="cve-card-body">
+          <div class="cve-tags" id="tags_certifications">
+            {% for cert in resume.certifications or [] %}
+            <span class="cve-tag skill-green">{{ cert }}<button type="button" onclick="removeTag(this)">x</button></span>
+            {% endfor %}
+            <input class="cve-tag-input" type="text" placeholder="Add certification..."
+                   onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTagTo('tags_certifications','skill-green',this)}">
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-certifications -->
+
+    <!-- ── 8. PROJECTS ── -->
+    <div class="cve-panel" id="sec-projects">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <span class="cve-card-title">Projects</span>
+          <button type="button" class="btn btn-sm btn-primary" style="margin-left:auto" onclick="addProject()">+ Add</button>
+        </div>
+        <div class="cve-card-body" id="proj-list">
+          {% for proj in resume.projects or [] %}
+          <div class="cve-entry" data-type="project">
+            <div class="cve-entry-header">
+              <div class="cve-entry-meta">
+                <input class="cve-input-title" type="text" value="{{ proj.name or '' }}" placeholder="Project Name">
+              </div>
+              <div class="cve-entry-controls">
+                <input class="cve-input-sm" type="text" value="{{ proj.duration or '' }}" placeholder="Duration">
+                <button type="button" class="cve-del-btn" onclick="removeEntry(this)" title="Remove">x</button>
+              </div>
+            </div>
+            <div class="cve-highlights">
+              {% for h in proj.highlights or [] %}
+              <div class="cve-highlight-row">
+                <span class="cve-bullet">|</span>
+                <textarea class="cve-highlight-input" rows="2">{{ h }}</textarea>
+                <button type="button" class="cve-del-small" onclick="removeHighlight(this)">x</button>
+              </div>
+              {% endfor %}
+              <button type="button" class="cve-add-highlight" onclick="addHighlight(this)">+ Add bullet</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div><!-- /sec-projects -->
+
+    <!-- ── 9. LANGUAGES ── -->
+    <div class="cve-panel" id="sec-languages">
+      <div class="cve-card">
+        <div class="cve-card-header">
+          <svg class="cve-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+          <span class="cve-card-title">Languages</span>
+        </div>
+        <div class="cve-card-body">
+          <div class="cve-tags" id="tags_languages">
+            {% for lang in resume.languages or [] %}
+            <span class="cve-tag skill-amber">{{ lang }}<button type="button" onclick="removeTag(this)">x</button></span>
+            {% endfor %}
+            <input class="cve-tag-input" type="text" placeholder="Add language..."
+                   onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTagTo('tags_languages','skill-amber',this)}">
+          </div>
+        </div>
+      </div>
+    </div><!-- /sec-languages -->
+
+  </div><!-- /cve-panels -->
+</div><!-- /cve-layout -->
+
+<!-- Toast notification -->
+<div id="cve-toast" class="cve-toast" style="display:none"></div>
+
+<!-- Hidden submit form -->
+<form id="saveForm" method="post" action="{{ url_for('cv.edit') }}" style="display:none">
+  <textarea name="resume_yaml" id="yaml_payload"></textarea>
+  <input type="submit">
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* ── CV Editor: topbar bleeds out of main-content padding ── */
+.cve-topbar {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  /* negative margins to escape main-content's 1.5rem padding */
+  margin: -1.5rem -1.5rem 0 -1.5rem;
+  flex-shrink: 0;
+}
+.cve-topbar-title {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.cve-topbar-sub {
+  font-size: .72rem;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  background: var(--surface2);
+  padding: .1rem .4rem;
+  border-radius: 4px;
+}
+
+/* ── Raw YAML panel ── */
+.cve-raw-panel {
+  margin: 0 -1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.cve-raw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.cve-raw-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface2);
+  border: none;
+  color: var(--text);
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: .8rem;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  display: block;
+}
+
+/* ── Tab layout ── */
+/* height = 100vh minus: topbar(56) + cve-topbar(52) + main-content padding top(24) */
+.cve-layout {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 56px - 52px - 1.5rem);
+  margin: 0 -1.5rem -1.5rem -1.5rem;
+  overflow: hidden;
+}
+
+/* Left section nav */
+.cve-nav {
+  width: 140px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+  padding: .5rem 0;
+}
+.cve-nav-item {
+  display: block;
+  padding: .45rem 1rem;
+  font-size: .8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.cve-nav-item:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+.cve-nav-item.active {
+  color: var(--accent, var(--primary));
+  border-left-color: var(--accent, var(--primary));
+  background: var(--surface2);
+  font-weight: 600;
+}
+
+/* Panels container */
+.cve-panels {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Individual section panel */
+.cve-panel {
+  display: none;
+  height: calc(100vh - 56px - 52px - 1.5rem);
+  overflow-y: auto;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+.cve-panel.active {
+  display: block;
+}
+
+/* ── Cards ── */
+.cve-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cve-card-header {
+  padding: .7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 8px 8px 0 0;
+  font-size: .85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.cve-card-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.cve-card-icon svg { width: 100%; height: 100%; }
+.cve-card-title { font-size: .88rem; font-weight: 600; }
+.cve-card-body { padding: 1rem; }
+
+/* ── Grid / Fields ── */
+.cve-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.cve-field { display: flex; flex-direction: column; gap: .25rem; }
+.cve-field label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cve-field input, .cve-field textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  padding: .45rem .65rem;
+  font-size: .84rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.cve-field input:focus, .cve-field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.cve-charcount { font-size: .72rem; font-weight: 400; color: var(--text-muted); float: right; }
+
+/* ── Skills tags ── */
+.cve-skill-group { margin-bottom: 1.25rem; }
+.cve-skill-group:last-child { margin-bottom: 0; }
+.cve-skill-group-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem; font-size: .8rem; color: var(--text-muted); }
+.cve-skill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cve-tags { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; min-height: 34px; }
+.cve-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  border-radius: 20px;
+  padding: .22rem .55rem .22rem .7rem;
+  font-size: .78rem;
+  background: rgba(59,130,246,.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59,130,246,.3);
+}
+.cve-tag.skill-blue   { background: rgba(59,130,246,.15); color: #60a5fa; border-color: rgba(59,130,246,.3); }
+.cve-tag.skill-purple { background: rgba(139,92,246,.15); color: #a78bfa; border-color: rgba(139,92,246,.3); }
+.cve-tag.skill-green  { background: rgba(16,185,129,.15); color: #34d399; border-color: rgba(16,185,129,.3); }
+.cve-tag.skill-amber  { background: rgba(245,158,11,.15); color: #fbbf24; border-color: rgba(245,158,11,.3); }
+.cve-tag.skill-pink   { background: rgba(236,72,153,.15); color: #f472b6; border-color: rgba(236,72,153,.3); }
+.cve-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: .85rem;
+  color: inherit;
+  opacity: .6;
+  line-height: 1;
+}
+.cve-tag button:hover { opacity: 1; }
+.cve-tag-input {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  color: var(--text);
+  padding: .22rem .7rem;
+  font-size: .78rem;
+  width: 120px;
+  outline: none;
+}
+.cve-tag-input:focus { border-color: var(--primary); }
+
+/* ── Entry cards (experience / internship / project) ── */
+.cve-entry {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.cve-entry:last-child { margin-bottom: 0; }
+.cve-entry-header {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .75rem 1rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.cve-entry-meta { display: flex; flex-direction: column; gap: .4rem; flex: 1; min-width: 180px; }
+.cve-entry-controls { display: flex; gap: .4rem; align-items: flex-start; flex-wrap: wrap; }
+.cve-input-title {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: .9rem;
+  font-weight: 600;
+  padding: .2rem 0;
+  width: 100%;
+  outline: none;
+}
+.cve-input-title:focus { border-bottom-color: var(--primary); }
+.cve-input-company {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  color: var(--primary);
+  font-size: .8rem;
+  padding: .2rem 0;
+  width: 100%;
+  outline: none;
+}
+.cve-input-company:focus { border-bottom-color: var(--primary); }
+.cve-input-sm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: .76rem;
+  padding: .3rem .5rem;
+  width: 100px;
+  outline: none;
+}
+.cve-input-sm:focus { border-color: var(--primary); color: var(--text); }
+.cve-del-btn {
+  background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.3);
+  color: #f87171;
+  border-radius: 5px;
+  padding: .3rem .5rem;
+  cursor: pointer;
+  font-size: .8rem;
+}
+.cve-del-btn:hover { background: rgba(239,68,68,.2); }
+
+/* Bullet points */
+.cve-highlights { padding: .75rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
+.cve-highlight-row { display: flex; align-items: flex-start; gap: .5rem; }
+.cve-bullet { color: var(--primary); font-size: .9rem; margin-top: .45rem; flex-shrink: 0; }
+.cve-highlight-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: .84rem;
+  padding: .4rem .6rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+.cve-highlight-input:focus { border-color: var(--primary); }
+.cve-del-small {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: .3rem;
+  font-size: .85rem;
+  margin-top: .25rem;
+}
+.cve-del-small:hover { color: #f87171; }
+.cve-add-highlight {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: .78rem;
+  padding: .3rem .75rem;
+  cursor: pointer;
+  text-align: left;
+  width: fit-content;
+}
+.cve-add-highlight:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── Education rows ── */
+.cve-edu-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: .6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.cve-edu-row:last-child { border-bottom: none; }
+.cve-input-degree, .cve-input-institution, .cve-input-year, .cve-input-score {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: .84rem;
+  padding: .4rem .6rem;
+  outline: none;
+}
+.cve-input-degree:focus, .cve-input-institution:focus, .cve-input-year:focus, .cve-input-score:focus { border-color: var(--primary); }
+.cve-input-degree      { flex: 2; min-width: 120px; }
+.cve-input-institution { flex: 3; min-width: 160px; }
+.cve-input-year        { flex: 1; min-width: 70px; }
+.cve-input-score       { flex: 1; min-width: 80px; }
+
+/* ── Toast ── */
+.cve-toast {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.5rem;
+  z-index: 9999;
+  padding: .65rem 1.1rem;
+  border-radius: 8px;
+  font-size: .875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  pointer-events: none;
+}
+.cve-toast.success { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
+.cve-toast.error   { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+
+/* btn-sm override if not in base */
+.btn-sm { padding: .28rem .65rem !important; font-size: .77rem !important; }
+</style>
+
+<script>
+/* ── Section switcher ── */
+function showSection(id, navEl) {
+  document.querySelectorAll('.cve-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.cve-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  navEl.classList.add('active');
+}
+
+/* ── Tag helpers ── */
+function addTag(input) {
+  const val = input.value.trim().replace(/,$/, '');
+  if (!val) return;
+  const cat = input.dataset.cat;
+  const clsMap = {
+    primary: 'skill-blue', ai_ml: 'skill-purple',
+    programming: 'skill-green', databases_tools: 'skill-amber', domain: 'skill-pink'
+  };
+  const container = document.getElementById('tags_' + cat);
+  const span = document.createElement('span');
+  span.className = 'cve-tag ' + (clsMap[cat] || 'skill-blue');
+  span.innerHTML = val + '<button type="button" onclick="removeTag(this)">x</button>';
+  container.insertBefore(span, input);
+  input.value = '';
+}
+
+function addTagTo(containerId, cls, input) {
+  const val = input.value.trim().replace(/,$/, '');
+  if (!val) return;
+  const container = document.getElementById(containerId);
+  const span = document.createElement('span');
+  span.className = 'cve-tag ' + cls;
+  span.innerHTML = val + '<button type="button" onclick="removeTag(this)">x</button>';
+  container.insertBefore(span, input);
+  input.value = '';
+}
+
+function removeTag(btn) { btn.parentElement.remove(); }
+
+/* ── Entry helpers ── */
+function removeEntry(btn) { btn.closest('.cve-entry').remove(); }
+function removeHighlight(btn) { btn.closest('.cve-highlight-row').remove(); }
+
+function addHighlight(btn) {
+  const highlights = btn.closest('.cve-highlights');
+  const row = document.createElement('div');
+  row.className = 'cve-highlight-row';
+  row.innerHTML = '<span class="cve-bullet">|</span>' +
+    '<textarea class="cve-highlight-input" rows="2" placeholder="Enter bullet point..."></textarea>' +
+    '<button type="button" class="cve-del-small" onclick="removeHighlight(this)">x</button>';
+  highlights.insertBefore(row, btn);
+}
+
+function makeEntry(type) {
+  const titlePh = type === 'project' ? 'Project Name' : (type === 'internship' ? 'Role Title' : 'Job Title');
+  const companyRow = type !== 'project'
+    ? '<input class="cve-input-company" type="text" value="" placeholder="Company">'
+    : '';
+  let controls = '<input class="cve-input-sm" type="text" value="" placeholder="Duration">';
+  if (type === 'experience') {
+    controls += '<input class="cve-input-sm" type="text" value="" placeholder="Location">';
+    controls += '<input class="cve-input-sm" type="text" value="Full-time" placeholder="Type">';
+  }
+  controls += '<button type="button" class="cve-del-btn" onclick="removeEntry(this)">x</button>';
+  return '<div class="cve-entry" data-type="' + type + '">' +
+    '<div class="cve-entry-header">' +
+      '<div class="cve-entry-meta">' +
+        '<input class="cve-input-title" type="text" value="" placeholder="' + titlePh + '">' +
+        companyRow +
+      '</div>' +
+      '<div class="cve-entry-controls">' + controls + '</div>' +
+    '</div>' +
+    '<div class="cve-highlights">' +
+      '<button type="button" class="cve-add-highlight" onclick="addHighlight(this)">+ Add bullet</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function addExperience() { document.getElementById('exp-list').insertAdjacentHTML('beforeend', makeEntry('experience')); }
+function addInternship() { document.getElementById('intern-list').insertAdjacentHTML('beforeend', makeEntry('internship')); }
+function addProject()    { document.getElementById('proj-list').insertAdjacentHTML('beforeend', makeEntry('project')); }
+function addEducation() {
+  const row = '<div class="cve-edu-row">' +
+    '<input type="text" class="cve-input-degree" value="" placeholder="Degree / Level">' +
+    '<input type="text" class="cve-input-institution" value="" placeholder="Institution">' +
+    '<input type="text" class="cve-input-year" value="" placeholder="Year">' +
+    '<input type="text" class="cve-input-score" value="" placeholder="Score / CGPA">' +
+    '<button type="button" class="cve-del-btn" onclick="this.closest(\'.cve-edu-row\').remove()">x</button>' +
+  '</div>';
+  document.getElementById('edu-list').insertAdjacentHTML('beforeend', row);
+}
+
+/* ── Character counter ── */
+function updateCharCount() {
+  const len = document.getElementById('p_summary').value.length;
+  document.getElementById('summary_count').textContent = len + ' chars';
+}
+
+/* ── Raw YAML toggle ── */
+function toggleRaw() {
+  const panel = document.getElementById('rawPanel');
+  const btn = document.getElementById('rawToggleBtn');
+  const showing = panel.style.display !== 'none';
+  if (showing) {
+    panel.style.display = 'none';
+    btn.textContent = 'Raw YAML';
+  } else {
+    panel.style.display = 'block';
+    syncRawFromForm();
+    btn.textContent = 'Hide YAML';
+  }
+}
+
+/* ── YAML serializer ── */
+function yamlStr(val) {
+  if (val === null || val === undefined || val === '') return "''";
+  val = String(val);
+  if (/[\n:#\[\]{}*&!|>'"%@`]/.test(val) || val.startsWith(' ') || val.startsWith('-') || val === 'null' || val === 'true' || val === 'false') {
+    return "'" + val.replace(/'/g, "''") + "'";
+  }
+  return val;
+}
+
+function yamlBlock(text, indent) {
+  if (!text || !text.trim()) return "''\n";
+  const pad = ' '.repeat(indent);
+  return '|\n' + text.split('\n').map(function(l){ return pad + l; }).join('\n') + '\n';
+}
+
+function collectFormData() {
+  var personal = {
+    name:              document.getElementById('p_name').value,
+    current_title:     document.getElementById('p_title').value,
+    email:             document.getElementById('p_email').value,
+    phone:             document.getElementById('p_phone').value,
+    location:          document.getElementById('p_location').value,
+    total_experience:  document.getElementById('p_exp').value,
+    linkedin:          document.getElementById('p_linkedin').value || null,
+    github:            document.getElementById('p_github').value || null,
+  };
+
+  var summary = document.getElementById('p_summary').value;
+
+  var skillCats = ['primary','ai_ml','programming','databases_tools','domain'];
+  var skills = {};
+  skillCats.forEach(function(cat) {
+    skills[cat] = Array.from(document.querySelectorAll('#tags_' + cat + ' .cve-tag'))
+      .map(function(el){ return el.childNodes[0].textContent.trim(); })
+      .filter(Boolean);
+  });
+
+  function parseEntries(listId) {
+    return Array.from(document.querySelectorAll('#' + listId + ' .cve-entry')).map(function(el) {
+      var type = el.dataset.type;
+      var controls = el.querySelectorAll('.cve-entry-controls .cve-input-sm');
+      var highlights = Array.from(el.querySelectorAll('.cve-highlight-input'))
+        .map(function(t){ return t.value.trim(); }).filter(Boolean);
+      var base = {
+        title: (el.querySelector('.cve-input-title') ? el.querySelector('.cve-input-title').value : ''),
+        highlights: highlights,
+      };
+      var companyEl = el.querySelector('.cve-input-company');
+      if (companyEl) base.company = companyEl.value;
+      if (type === 'experience') {
+        base.duration = controls[0] ? controls[0].value : '';
+        base.location = controls[1] ? controls[1].value : '';
+        base.type     = controls[2] ? controls[2].value : 'Full-time';
+      } else if (type === 'internship') {
+        base.duration = controls[0] ? controls[0].value : '';
+      } else if (type === 'project') {
+        base.name = base.title;
+        delete base.title;
+        base.duration = controls[0] ? controls[0].value : '';
+      }
+      return base;
+    });
+  }
+
+  var experience  = parseEntries('exp-list');
+  var internships = parseEntries('intern-list');
+  var projects    = parseEntries('proj-list');
+
+  var education = Array.from(document.querySelectorAll('#edu-list .cve-edu-row')).map(function(row) {
+    return {
+      degree:      (row.querySelector('.cve-input-degree')      || {}).value || '',
+      institution: (row.querySelector('.cve-input-institution') || {}).value || null,
+      year:        (row.querySelector('.cve-input-year')        || {}).value || null,
+      score:       (row.querySelector('.cve-input-score')       || {}).value || null,
+    };
+  });
+
+  var certifications = Array.from(document.querySelectorAll('#tags_certifications .cve-tag'))
+    .map(function(el){ return el.childNodes[0].textContent.trim(); }).filter(Boolean);
+  var languages = Array.from(document.querySelectorAll('#tags_languages .cve-tag'))
+    .map(function(el){ return el.childNodes[0].textContent.trim(); }).filter(Boolean);
+
+  return { personal: personal, summary: summary, skills: skills,
+           experience: experience, internships: internships,
+           education: education, certifications: certifications,
+           projects: projects, languages: languages };
+}
+
+function buildYaml(d) {
+  var lines = [];
+  var p = d.personal;
+
+  lines.push('personal:');
+  lines.push('  name: ' + yamlStr(p.name));
+  lines.push('  current_title: ' + yamlStr(p.current_title));
+  lines.push('  email: ' + yamlStr(p.email));
+  lines.push('  phone: ' + yamlStr(p.phone));
+  lines.push('  location: ' + yamlStr(p.location));
+  lines.push('  total_experience: ' + yamlStr(p.total_experience));
+  lines.push('  linkedin: ' + (p.linkedin ? yamlStr(p.linkedin) : 'null'));
+  lines.push('  github: '   + (p.github   ? yamlStr(p.github)   : 'null'));
+  lines.push('');
+
+  lines.push('profile_summary: ' + yamlBlock(d.summary, 2));
+
+  lines.push('skills:');
+  ['primary','ai_ml','programming','databases_tools','domain'].forEach(function(cat) {
+    lines.push('  ' + cat + ':');
+    (d.skills[cat] || []).forEach(function(s){ lines.push('    - ' + yamlStr(s)); });
+  });
+  lines.push('');
+
+  lines.push('experience:');
+  d.experience.forEach(function(e) {
+    lines.push('  - title: '    + yamlStr(e.title));
+    lines.push('    company: '  + yamlStr(e.company));
+    lines.push('    location: ' + yamlStr(e.location));
+    lines.push('    duration: ' + yamlStr(e.duration));
+    lines.push('    type: '     + yamlStr(e.type));
+    lines.push('    highlights:');
+    (e.highlights || []).forEach(function(h){ lines.push("      - '" + h.replace(/'/g,"''") + "'"); });
+    lines.push('');
+  });
+
+  lines.push('internships:');
+  d.internships.forEach(function(i) {
+    lines.push('  - title: '    + yamlStr(i.title));
+    lines.push('    company: '  + yamlStr(i.company));
+    lines.push('    duration: ' + yamlStr(i.duration));
+    lines.push('    highlights:');
+    (i.highlights || []).forEach(function(h){ lines.push("      - '" + h.replace(/'/g,"''") + "'"); });
+    lines.push('');
+  });
+
+  lines.push('education:');
+  d.education.forEach(function(e) {
+    lines.push('  - degree: '      + yamlStr(e.degree));
+    lines.push('    institution: ' + (e.institution ? yamlStr(e.institution) : 'null'));
+    lines.push('    year: '        + (e.year  ? '"' + e.year  + '"' : 'null'));
+    lines.push('    score: '       + (e.score ? yamlStr(e.score)    : 'null'));
+  });
+  lines.push('');
+
+  lines.push('certifications:');
+  d.certifications.forEach(function(c){ lines.push('  - ' + yamlStr(c)); });
+  lines.push('');
+
+  lines.push('projects:');
+  d.projects.forEach(function(pr) {
+    lines.push('  - name: '     + yamlStr(pr.name));
+    lines.push('    duration: ' + yamlStr(pr.duration));
+    lines.push('    highlights:');
+    (pr.highlights || []).forEach(function(h){ lines.push("      - '" + h.replace(/'/g,"''") + "'"); });
+    lines.push('');
+  });
+
+  lines.push('languages:');
+  d.languages.forEach(function(l){ lines.push('  - ' + yamlStr(l)); });
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+function syncRawFromForm() {
+  document.getElementById('raw-yaml').value = buildYaml(collectFormData());
+}
+
+/* ── Save ── */
+function saveResume() {
+  var yaml = buildYaml(collectFormData());
+  document.getElementById('yaml_payload').value = yaml;
+  document.getElementById('saveForm').submit();
+}
+
+/* ── Toast ── */
+function showToast(msg, type) {
+  var t = document.getElementById('cve-toast');
+  t.textContent = msg;
+  t.className = 'cve-toast ' + (type || 'success');
+  t.style.display = 'block';
+  setTimeout(function(){ t.style.display = 'none'; }, 3500);
+}
+
+/* ── Init ── */
+updateCharCount();
+{% if request.args.get('saved') %}
+showToast('Resume saved successfully!', 'success');
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+providers:
+  gemini:
+    name: "Gemini"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.0-flash"
+    model_vision: "gemini-2.0-flash"
+    daily_token_limit: 1000000
+    rpm_limit: 15
+    tier: "quality"          # Tier B: complex reasoning, drafting, JD analysis
+    max_context_tokens: 50000
+
+  groq:
+    name: "Groq"
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+    model: "llama-3.1-8b-instant"
+    model_fast: "llama-3.1-8b-instant"
+    daily_token_limit: 500000
+    rpm_limit: 30
+    tier: "fast"             # Tier A: classification, QA, fast tasks
+    max_context_tokens: 50000
+
+routing:
+  # Tier A (Groq) — fast, cheap tasks
+  default: "groq"
+  fast_classification: "groq"   # Email classification
+  question_answering: "groq"    # Screening question answers
+  # Tier B (Gemini) — quality tasks requiring more reasoning
+  quality_drafting: "gemini"    # Recruiter email drafts
+  resume_parsing: "gemini"      # CV structuring from raw text
+  jd_analysis: "gemini"         # JD parsing and scoring
+  job_extraction: "gemini"      # Extract structured jobs from email HTML
+
+retry:
+  max_attempts: 3
+  backoff_base_seconds: 2       # 2s, 4s, 8s
+  rate_limit_status_codes: [429, 503]

@@ -1,0 +1,56 @@
+synonym_swaps:
+  skills:
+    - ["Cloud Infrastructure", "Cloud Infra"]
+    - ["Cloud Solution Consulting", "Cloud Solutions Advisory"]
+    - ["Solution Architecture", "Solutions Architecture"]
+    - ["Cloud Deployment", "Cloud Provisioning"]
+    - ["Cloud Management", "Cloud Operations"]
+    - ["Performance Tuning", "Performance Optimization"]
+    - ["Continuous Integration", "CI/CD"]
+    - ["Release Engineering", "Release Management"]
+    - ["Technical Documentation", "Tech Documentation"]
+    - ["Cloud Migration", "Cloud Transformation"]
+    - ["Data Visualization", "Data Viz"]
+    - ["VMware VSphere", "VMware vSphere 7"]
+    - ["Generative AI", "GenAI"]
+    - ["Agentic RAG", "Agentic Retrieval-Augmented Generation"]
+    - ["Hybrid RAG", "Hybrid Retrieval Augmented Generation"]
+    - ["RAG", "Retrieval-Augmented Generation"]
+    - ["Vision Model", "Computer Vision Model"]
+    - ["Python", "Python 3"]
+    - ["Neo4j", "Neo4j Graph Database"]
+    - ["ElasticSearch", "Elasticsearch"]
+    - ["Data Products", "Data Product Engineering"]
+    - ["Langchain", "LangChain"]
+    - ["Huggingface", "HuggingFace"]
+
+  headline_variations:
+    - "Product Documentation Lead | Senior Technical Writer | AI/ML Solutions | Cloud Consultant"
+    - "Senior Technical Writer and AI Enabler | Cloud Migration | RAG Systems | Product Documentation"
+    - "Documentation Lead | GenAI Developer | Cloud Consultant | Business Analyst"
+    - "AI-Powered Documentation Lead | RAG and LLM Systems | Cloud Infrastructure | 5+ Years Experience"
+    - "Product Documentation Lead | 40+ AI Tools Built | Cloud and GenAI | Technical Writing Expert"
+    - "Cloud Consultant and Technical Writer | GenAI | RAG | VMware | Python | Product Documentation"
+    - "Technical Writer to AI Architect | Documentation Lead | Cloud Migration | Enterprise AI Solutions"
+
+  summary_micro_tweaks:
+    - ["balanced mix", "strong blend"]
+    - ["business insight", "business understanding"]
+    - ["clear communication", "effective communication"]
+    - ["diverse industries", "multiple industries"]
+    - ["sustainable solutions", "scalable solutions"]
+    - ["respected organizations", "leading organizations"]
+
+update_rules:
+  min_interval_minutes: 15
+  max_interval_minutes: 30
+  max_updates_per_day: 40
+  never_change_simultaneously: true
+  always_log: true
+  randomize_time: true
+  change_types_rotation:
+    - "synonym_swap_skill"
+    - "headline_variation"
+    - "summary_micro_tweak"
+    - "skill_reorder"
+    - "whitespace_tweak"

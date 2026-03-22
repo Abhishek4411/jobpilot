@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Missing Fields - JobPilot{% endblock %}
+{% block content %}
+<h1 class="page-title">Missing Required Fields</h1>
+<p class="text-muted">The system could not find the following required fields in your resume. Please fill them in below.</p>
+
+{% if missing %}
+<form method="post" action="{{ url_for('cv.missing_fields') }}">
+  <div class="card">
+    {% for field in missing %}
+    <div class="form-group">
+      <label class="label" for="{{ field }}">{{ field.replace('.', ' > ').replace('_', ' ').title() }}</label>
+      <input class="input" type="text" id="{{ field }}" name="{{ field }}" placeholder="Enter {{ field }}">
+      <span class="help-text">This field is needed to match jobs and fill applications accurately.</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+    <button class="btn btn-success" type="submit">Save Missing Fields</button>
+    <a href="{{ url_for('cv.edit') }}" class="btn btn-secondary">Edit Full Resume</a>
+  </div>
+</form>
+{% else %}
+<div class="empty-state">
+  <p>All required fields are present.</p>
+  <a href="{{ url_for('cv.cv_home') }}" class="btn btn-primary">View Resume</a>
+</div>
+{% endif %}
+{% endblock %}

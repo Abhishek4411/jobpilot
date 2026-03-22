@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Logs - JobPilot{% endblock %}
+{% block content %}
+<h1 class="page-title">Activity Logs</h1>
+
+<form class="filter-bar" method="get">
+  <select class="select" name="agent">
+    <option value="">All Agents</option>
+    {% for agent in agents %}
+    <option value="{{ agent }}" {% if agent_filter == agent %}selected{% endif %}>{{ agent }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">Filter</button>
+</form>
+
+<table class="table">
+  <thead>
+    <tr><th>Time</th><th>Agent</th><th>Action</th><th>Details</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for entry in entries %}
+    {# apply_failed = urgent (missed job application), cv_update_manual_needed = low severity automation hiccup #}
+    {% set is_urgent   = 'apply_failed' in entry.action %}
+    {% set is_cv_retry = 'cv_update_manual_needed' in entry.action %}
+    {% set is_ok       = 'success' in entry.action or '_ok' in entry.action or 'complete' in entry.action or 'generated' in entry.action %}
+    {% set is_warn     = 'error' in entry.action or 'failed' in entry.action or 'timeout' in entry.action %}
+    <tr class="log-row {% if is_urgent %}log-row--warn{% elif is_warn %}log-row--warn{% elif is_cv_retry %}log-row--info{% elif is_ok %}log-row--ok{% endif %}">
+      <td class="text-muted">{{ entry['created_at'][:19] }}</td>
+      <td><span class="badge badge-agent">{{ entry['agent'] }}</span></td>
+      <td>
+        {% if is_urgent %}
+          <span style="color:var(--danger);font-weight:600;">&#9888; Action Required</span>
+          &mdash; {{ entry['action'] | replace('apply_failed','manual apply needed') }}
+        {% elif is_cv_retry %}
+          <span class="text-muted" style="font-size:.78rem;">&#x21BA; CV update retried manually</span>
+        {% elif is_warn %}
+          <span style="color:var(--warning);">&#9888;</span> {{ entry['action'] }}
+        {% else %}
+          {{ entry['action'] }}
+        {% endif %}
+      </td>
+      <td class="text-muted">{{ entry['details'] }}</td>
+      <td>
+        {% if needs_attention %}
+          {% set url_start = entry['details'].find('url=') %}
+          {% if url_start >= 0 %}
+            {% set job_url = entry['details'][url_start+4:].split(' ')[0] %}
+            <a href="{{ job_url }}" target="_blank"
+               class="btn btn-secondary"
+               style="font-size:0.75rem;padding:2px 8px;">Open</a>
+          {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">No log entries yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="pagination-bar">
+  <span class="pagination-info text-muted">
+    {% set from_entry = (page - 1) * per_page + 1 %}
+    {% set to_entry = [page * per_page, total_count] | min %}
+    {% if total_count > 0 %}
+      Showing {{ from_entry }}–{{ to_entry }} of {{ total_count }} entries &nbsp;·&nbsp; Page {{ page }} of {{ total_pages }}
+    {% else %}
+      No entries
+    {% endif %}
+  </span>
+
+  <div class="pagination-controls">
+    {# First + Prev #}
+    {% if page > 1 %}
+    <a href="?page=1&agent={{ agent_filter }}" class="btn btn-secondary btn-sm" title="First page">&laquo;</a>
+    <a href="?page={{ page - 1 }}&agent={{ agent_filter }}" class="btn btn-secondary btn-sm">&lsaquo; Prev</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm disabled">&laquo;</span>
+    <span class="btn btn-secondary btn-sm disabled">&lsaquo; Prev</span>
+    {% endif %}
+
+    {# Page number buttons with ellipsis gaps #}
+    {% set ns = namespace(prev=0) %}
+    {% for p in page_window %}
+      {% if ns.prev > 0 and p - ns.prev > 1 %}
+        <span class="pagination-ellipsis text-muted">&hellip;</span>
+      {% endif %}
+      {% if p == page %}
+        <span class="btn btn-primary btn-sm pagination-current">{{ p }}</span>
+      {% else %}
+        <a href="?page={{ p }}&agent={{ agent_filter }}" class="btn btn-secondary btn-sm">{{ p }}</a>
+      {% endif %}
+      {% set ns.prev = p %}
+    {% endfor %}
+
+    {# Next + Last #}
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}&agent={{ agent_filter }}" class="btn btn-secondary btn-sm">Next &rsaquo;</a>
+    <a href="?page={{ total_pages }}&agent={{ agent_filter }}" class="btn btn-secondary btn-sm" title="Last page">&raquo;</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm disabled">Next &rsaquo;</span>
+    <span class="btn btn-secondary btn-sm disabled">&raquo;</span>
+    {% endif %}
+  </div>
+
+  {# Jump to page input #}
+  {% if total_pages > 5 %}
+  <form class="pagination-jump" method="get" onsubmit="return jumpPage(this)">
+    <input type="hidden" name="agent" value="{{ agent_filter }}">
+    <input type="number" name="page" id="jumpInput" class="input pagination-jump-input"
+           min="1" max="{{ total_pages }}" placeholder="Page" value="{{ page }}">
+    <button type="submit" class="btn btn-secondary btn-sm">Go</button>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+function jumpPage(form) {
+  var val = parseInt(form.page.value, 10);
+  if (isNaN(val) || val < 1 || val > {{ total_pages }}) {
+    form.page.value = {{ page }};
+    return false;
+  }
+  return true;
+}
+</script>
+{% endblock %}

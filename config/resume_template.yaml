@@ -1,0 +1,66 @@
+# JobPilot Resume Template
+# INSTRUCTIONS FOR NEW USERS:
+# 1. Copy this file to config/resume.yaml
+# 2. Fill in every field with your actual data
+# 3. OR upload your PDF/DOCX via the dashboard at /cv/upload and it will auto-fill
+# 4. Fields marked [REQUIRED] must be filled for the system to work
+# 5. Fields marked [OPTIONAL] improve matching accuracy
+
+personal:
+  name: ""                    # [REQUIRED] Your full name
+  current_title: ""           # [REQUIRED] Your current job title
+  email: ""                   # [REQUIRED] Your email address
+  phone: ""                   # [REQUIRED] Your phone number with country code
+  location: ""                # [REQUIRED] City, Country
+  total_experience: ""        # [REQUIRED] e.g. "5 Years 6 Months"
+  linkedin: ""                # [OPTIONAL] Full LinkedIn URL
+  naukri_profile: ""          # [OPTIONAL] Full Naukri profile URL
+  github: ""                  # [OPTIONAL] GitHub URL
+  portfolio: ""               # [OPTIONAL] Portfolio/website URL
+
+profile_summary: |
+  # [REQUIRED] Paste your profile summary here.
+  # Write 3-5 sentences describing your experience,
+  # skills, and what you bring to a role.
+
+skills:
+  primary: []                 # [REQUIRED] Core skills - at least 5
+  ai_ml: []                   # [OPTIONAL] AI/ML frameworks and tools
+  programming: []             # [OPTIONAL] Programming languages and frameworks
+  databases_tools: []         # [OPTIONAL] Databases and tools
+  domain: []                  # [OPTIONAL] Industry/domain knowledge
+
+experience:
+  # [REQUIRED] At least 1 entry
+  - title: ""                 # Job title
+    company: ""               # Company name
+    location: ""              # City or Remote
+    duration: ""              # e.g. "Jan 2023 - Present"
+    type: ""                  # full-time, contract, freelance
+    highlights:               # List of bullet points (copy from resume)
+      - ""
+
+education:
+  # [REQUIRED] At least 1 entry
+  - degree: ""                # e.g. "B.Tech in Computer Science"
+    institution: ""           # College/University name
+    year: 0                   # Graduation year
+
+certifications: []            # [OPTIONAL] List of certification names
+
+projects:                     # [OPTIONAL] Key projects
+  - name: ""
+    duration: ""
+    highlights: []
+
+internships:                  # [OPTIONAL] Internship experiences
+  - title: ""
+    company: ""
+    duration: ""
+    description: ""
+
+languages: []                 # [OPTIONAL] e.g. ["English", "Hindi"]
+
+# The system reads this file word-by-word.
+# Every fact shared in emails, applications, and replies
+# comes ONLY from this file. Nothing is invented.

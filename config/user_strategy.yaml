@@ -1,0 +1,41 @@
+# Level 2 Business Brain — Job Search Strategy
+# Edit this file to shape how JobPilot scores, filters, and drafts emails.
+
+target_roles:
+  - Product Manager
+  - Technical Program Manager
+  - Product Lead
+  - Senior Product Manager
+  - Group Product Manager
+
+avoid_companies: []        # Add company names to suppress from scoring (e.g. toxic past employers)
+target_companies: []       # Add company names to boost score priority (shortlist targets)
+
+location_preference:
+  - Bangalore
+  - Remote
+  - Hyderabad
+  - Mumbai
+
+work_type_preference:
+  - remote
+  - hybrid
+
+compensation_floor_inr: 0  # Minimum CTC (INR); 0 = no filter
+
+notice_period_days: 30
+
+search_intent: >
+  Seeking senior IC or lead roles in B2B SaaS, data infrastructure, or developer tooling.
+  Strong preference for product-led growth companies and roles with high ownership.
+
+deal_breakers:
+  - relocation required
+  - service agreement
+  - bond period
+  - unpaid probation
+
+# Email drafting context — injected into LLM system prompt
+email_context: >
+  When replying to recruiters, always mention openness to a quick call.
+  Avoid committing to hard start dates. Keep tone warm but professional.

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Emails — JobPilot{% endblock %}
+{% block topbar_title %}Email Inbox{% endblock %}
+
+{% block content %}
+<style>
+.email-filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.email-filters a{padding:.25rem .65rem;border-radius:5px;border:1px solid var(--border);
+  font-size:.78rem;text-decoration:none;color:var(--text-muted);background:var(--card-bg)}
+.email-filters a.active,.email-filters a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.email-table{width:100%;border-collapse:collapse}
+.email-table th{font-size:.75rem;color:var(--text-muted);text-align:left;padding:.5rem .75rem;
+  border-bottom:1px solid var(--border);text-transform:uppercase}
+.email-table td{padding:.55rem .75rem;border-bottom:1px solid var(--border);font-size:.82rem;vertical-align:top}
+.email-table tr:hover td{background:color-mix(in srgb,var(--accent) 4%,var(--bg))}
+.cat-badge{border-radius:4px;padding:.15rem .45rem;font-size:.7rem;font-weight:600;white-space:nowrap}
+.cat-interview_request{background:color-mix(in srgb,#10b981 20%,var(--bg));color:#34d399}
+.cat-job_opportunity{background:color-mix(in srgb,#3b82f6 20%,var(--bg));color:#60a5fa}
+.cat-follow_up{background:color-mix(in srgb,#8b5cf6 20%,var(--bg));color:#a78bfa}
+.cat-job_alert{background:color-mix(in srgb,#f59e0b 15%,var(--bg));color:#fbbf24}
+.cat-sent_mail{background:color-mix(in srgb,#6b7280 20%,var(--bg));color:#9ca3af}
+.cat-irrelevant{background:var(--bg);color:var(--text-muted)}
+.cat-application_confirmation{background:color-mix(in srgb,#059669 15%,var(--bg));color:#6ee7b7}
+.cat-rejection{background:color-mix(in srgb,#ef4444 15%,var(--bg));color:#fca5a5}
+.cat-bounce_detected{background:color-mix(in srgb,#f97316 15%,var(--bg));color:#fdba74}
+.email-subject{max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.email-body-preview{color:var(--text-muted);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.refresh-btn{padding:.35rem .8rem;border-radius:6px;border:none;background:var(--accent);
+  color:#fff;cursor:pointer;font-size:.82rem}
+.refresh-btn:hover{opacity:.85}
+</style>
+
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
+  <form method="get" style="display:flex;gap:.5rem;flex:1;min-width:200px">
+    <input type="hidden" name="cat" value="{{ cat_filter }}">
+    <input type="text" name="q" value="{{ search }}" placeholder="Search subject / sender..."
+      style="flex:1;padding:.4rem .7rem;border-radius:6px;border:1px solid var(--border);
+      background:var(--card-bg);color:var(--text);font-size:.85rem">
+    <button type="submit" class="refresh-btn">Search</button>
+  </form>
+  <button class="refresh-btn" onclick="forceFetch()">Fetch Now</button>
+</div>
+
+<div class="email-filters">
+  <a href="{{ url_for('main.emails_page') }}" class="{{ 'active' if not cat_filter else '' }}">
+    All ({{ emails|length }})
+  </a>
+  {% for cat in cats %}
+  <a href="{{ url_for('main.emails_page', cat=cat) }}" class="{{ 'active' if cat_filter==cat else '' }}">
+    {{ cat.replace('_', ' ').title() }} ({{ counts.get(cat, 0) }})
+  </a>
+  {% endfor %}
+</div>
+
+{% if emails %}
+<div style="overflow-x:auto">
+<table class="email-table">
+  <thead>
+    <tr>
+      <th>Category</th><th>From</th><th>Subject</th><th>Preview</th><th>Draft?</th><th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for em in emails %}
+  <tr>
+    <td><span class="cat-badge cat-{{ em.category }}">{{ (em.category or 'unknown').replace('_',' ') }}</span></td>
+    <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.78rem">{{ em.sender or '-' }}</td>
+    <td class="email-subject" title="{{ em.subject or '' }}">{{ em.subject or '(no subject)' }}</td>
+    <td class="email-body-preview" title="{{ em.body_preview or '' }}">{{ (em.body_preview or '')[:120] }}</td>
+    <td style="text-align:center">
+      {% if em.reply_draft %}
+        {% if em.reply_sent %}
+          <span style="color:#34d399;font-size:.75rem">Sent</span>
+        {% elif em.reply_approved %}
+          <span style="color:#60a5fa;font-size:.75rem">Approved</span>
+        {% else %}
+          <a href="{{ url_for('main.approvals') }}" style="font-size:.75rem;color:#fbbf24">Pending</a>
+        {% endif %}
+      {% else %}-{% endif %}
+    </td>
+    <td style="white-space:nowrap;font-size:.75rem;color:var(--text-muted)">{{ (em.received_at or em.processed_at or '')[:16] }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div style="text-align:center;padding:3rem;color:var(--text-muted)">
+  <p>No emails found.</p>
+  <p style="font-size:.85rem">Click <strong>Fetch Now</strong> to pull emails from Gmail immediately.</p>
+</div>
+{% endif %}
+
+<script>
+function forceFetch() {
+  var btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  fetch('/api/email/force-fetch', {method:'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        btn.textContent = 'Fetched ' + d.fetched + ' emails!';
+        setTimeout(function() { location.reload(); }, 1200);
+      } else {
+        btn.textContent = 'Error: ' + (d.error || 'unknown');
+        btn.disabled = false;
+      }
+    })
+    .catch(function(e) {
+      btn.textContent = 'Failed';
+      btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

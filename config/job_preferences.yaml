@@ -1,0 +1,112 @@
+target_roles:
+  primary:
+    - "Product Documentation Lead"
+    - "Senior Technical Writer"
+    - "Technical Writing Manager"
+    - "Documentation Manager"
+    - "Content Lead"
+    - "Knowledge Management Lead"
+  secondary:
+    - "Business Analyst"
+    - "Associate Cloud Consultant"
+    - "Cloud Solutions Consultant"
+    - "Cloud Migration Specialist"
+    - "AI ML Engineer"
+    - "GenAI Developer"
+    - "AI Solutions Architect"
+  stretch:
+    - "Product Manager Technical"
+    - "Developer Relations Engineer"
+    - "Solutions Engineer"
+    - "Pre-Sales Consultant Cloud AI"
+
+search_keywords:
+  groups:
+    - ["Product Documentation Lead", "Documentation Manager"]
+    - ["Senior Technical Writer", "Technical Writer Lead"]
+    - ["AI ML Engineer", "GenAI Developer"]
+    - ["Cloud Consultant", "Cloud Migration"]
+    - ["Business Analyst", "BA Cloud"]
+    - ["RAG Developer", "LLM Engineer"]
+    - ["Solutions Architect", "Pre-Sales AI"]
+    - ["Content Lead", "Knowledge Manager"]
+
+locations:
+  # India cities are always searched first — primary market
+  india_priority:
+    - "Bengaluru"
+    - "Mumbai"
+    - "Hyderabad"
+    - "Pune"
+    - "Delhi NCR"
+    - "Noida"
+    - "Chennai"
+    - "Kolkata"
+    - "Ahmedabad"
+    - "Kochi"
+  preferred:
+    - "Bengaluru"
+    - "Mumbai"
+    - "Hyderabad"
+    - "Pune"
+    - "Delhi NCR"
+    - "Chennai"
+    - "Remote"
+  open_to_international: true
+  international_preferred:
+    - "Remote"
+    - "Dubai"
+    - "Singapore"
+    - "Germany"
+    - "Canada"
+    - "United States"
+    - "United Kingdom"
+    - "Australia"
+
+salary:
+  min_lpa: 12
+  preferred_lpa: 18
+  currency: "INR"
+  open_to_negotiation: true
+
+experience_range:
+  min_years: 3
+  max_years: 8
+
+job_types:
+  - "full-time"
+  - "contract"
+
+exclude_companies: []
+
+exclude_keywords:
+  - "unpaid"
+  - "internship"
+  - "volunteer"
+  - "fresher only"
+  - "0-1 years"
+
+must_have_keywords:
+  - "documentation"
+  - "technical writing"
+  - "cloud"
+  - "AI"
+  - "ML"
+  - "GenAI"
+  - "RAG"
+  - "business analyst"
+  - "migration"
+  - "VMware"
+  - "Python"
+  - "LLM"
+  - "content"
+  - "knowledge base"
+
+portals:
+  naukri: true
+  linkedin: true
+  indeed: true
+  glassdoor: false    # disabled: consistently blocked by Glassdoor anti-scraping (2026-03)
+  google_jobs: true
+  wellfound: true
+  instahyre: true

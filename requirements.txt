@@ -1,0 +1,15 @@
+flask>=3.0
+python-dotenv>=1.0
+pyyaml>=6.0
+openai>=1.40
+sentence-transformers>=2.7
+torch>=2.0
+pymupdf>=1.24
+python-docx>=1.1
+playwright>=1.44
+apscheduler>=3.10
+python-jobspy>=1.1
+plyer>=2.1
+edge-tts>=6.1
+numpy>=1.26
+pytest>=8.0

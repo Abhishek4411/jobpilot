@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Interview Calendar — JobPilot{% endblock %}
+{% block topbar_title %}Interview Calendar{% endblock %}
+
+{% block content %}
+<style>
+.cal-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.cal-header h2{margin:0;font-size:1.3rem}
+.cal-nav{display:flex;gap:.5rem}
+.cal-nav a{padding:.35rem .8rem;border-radius:6px;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);text-decoration:none;font-size:.85rem}
+.cal-nav a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cal-day-header{background:var(--card-bg);padding:.5rem;text-align:center;
+  font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase}
+.cal-cell{background:var(--bg);min-height:90px;padding:.4rem .5rem;position:relative;cursor:default}
+.cal-cell.other-month{background:var(--card-bg);opacity:.4}
+.cal-cell.today{background:color-mix(in srgb,var(--accent) 8%,var(--bg))}
+.cal-cell.today .day-num{color:var(--accent);font-weight:700}
+.day-num{font-size:.8rem;font-weight:600;margin-bottom:.3rem;color:var(--text-muted)}
+.cal-event{border-radius:4px;padding:.2rem .4rem;margin:.1rem 0;font-size:.72rem;
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:block;text-align:left;border:none;width:100%}
+.cal-event.telephonic{background:#1e40af;color:#bfdbfe}
+.cal-event.video{background:#5b21b6;color:#ddd6fe}
+.cal-event.face_to_face{background:#065f46;color:#a7f3d0}
+.cal-event.unknown{background:#92400e;color:#fde68a}
+.cal-event.completed{opacity:.5;text-decoration:line-through}
+.cal-event.cancelled{opacity:.4}
+
+/* Flashcard modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.flashcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  width:min(700px,100%);max-height:90vh;overflow-y:auto;padding:1.75rem;position:relative;
+  box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.fc-close{position:absolute;top:.9rem;right:1.1rem;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-size:1rem;cursor:pointer;line-height:1;width:28px;height:28px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center}
+.fc-close:hover{background:var(--border);color:var(--text)}
+.fc-company{font-size:1.5rem;font-weight:700;margin:0 0 .25rem;color:var(--text)}
+.fc-role{color:var(--text-muted);font-size:1rem;margin:0 0 1.1rem;font-weight:500}
+.fc-meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.1rem}
+.fc-badge{border-radius:20px;padding:.3rem .85rem;font-size:.78rem;font-weight:700;letter-spacing:.02em}
+.fc-badge.telephonic{background:#1d4ed8;color:#fff}
+.fc-badge.video{background:#6d28d9;color:#fff}
+.fc-badge.face_to_face{background:#065f46;color:#6ee7b7}
+.fc-badge.unknown{background:#92400e;color:#fde68a}
+.fc-badge.date{background:var(--surface2);color:var(--text);border:1px solid var(--border);font-weight:600}
+.fc-section{margin-top:1.2rem;border-top:1px solid var(--border);padding-top:.9rem}
+.fc-section h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--accent);font-weight:700;margin:0 0 .6rem}
+.fc-meeting-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.4rem;
+  border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;
+  font-weight:700;font-size:.92rem;margin-top:.4rem;border:none}
+.fc-meeting-btn:hover{opacity:.85}
+.fc-topics{white-space:pre-wrap;font-size:.86rem;line-height:1.7;color:var(--text);
+  background:var(--surface2);padding:.9rem 1rem;border-radius:8px;border:1px solid var(--border)}
+.fc-jd{font-size:.85rem;color:var(--text);line-height:1.6;
+  background:var(--surface2);padding:.9rem 1rem;border-radius:8px;border:1px solid var(--border)}
+.fc-recruiter{font-size:.88rem;color:var(--text);background:var(--surface2);
+  padding:.6rem .9rem;border-radius:6px;border:1px solid var(--border)}
+.fc-actions{display:flex;gap:.5rem;margin-top:1.4rem;flex-wrap:wrap;padding-top:1rem;border-top:1px solid var(--border)}
+
+/* Upcoming strip */
+.upcoming-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:.75rem;margin-bottom:1.5rem}
+.up-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;
+  padding:.75rem 1rem;cursor:pointer;transition:border-color .15s}
+.up-card:hover{border-color:var(--accent)}
+.up-card .up-when{font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem}
+.up-card .up-company{font-weight:600;font-size:.9rem}
+.up-card .up-role{font-size:.78rem;color:var(--text-muted)}
+</style>
+
+<div class="cal-header">
+  <h2>
+    {% set months = ['','January','February','March','April','May','June',
+                     'July','August','September','October','November','December'] %}
+    {{ months[month] }} {{ year }}
+  </h2>
+  <div class="cal-nav">
+    {% set pm = month - 1 if month > 1 else 12 %}
+    {% set py = year if month > 1 else year - 1 %}
+    {% set nm = month + 1 if month < 12 else 1 %}
+    {% set ny = year if month < 12 else year + 1 %}
+    <a href="{{ url_for('main.calendar_page', year=py, month=pm) }}">&larr; Prev</a>
+    <a href="{{ url_for('main.calendar_page') }}">Today</a>
+    <a href="{{ url_for('main.calendar_page', year=ny, month=nm) }}">Next &rarr;</a>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;font-size:.75rem;font-weight:600">
+    <span style="padding:.25rem .65rem;border-radius:20px;background:#1e40af;color:#bfdbfe">Telephonic</span>
+    <span style="padding:.25rem .65rem;border-radius:20px;background:#5b21b6;color:#ddd6fe">Video</span>
+    <span style="padding:.25rem .65rem;border-radius:20px;background:#065f46;color:#a7f3d0">F2F</span>
+    <span style="padding:.25rem .65rem;border-radius:20px;background:#92400e;color:#fde68a">Other</span>
+  </div>
+</div>
+
+<!-- Upcoming interviews strip -->
+<div id="upcoming-strip" class="upcoming-strip" style="display:none"></div>
+
+<!-- Calendar grid -->
+<div class="cal-grid" id="cal-grid">
+  <div class="cal-day-header">Mon</div>
+  <div class="cal-day-header">Tue</div>
+  <div class="cal-day-header">Wed</div>
+  <div class="cal-day-header">Thu</div>
+  <div class="cal-day-header">Fri</div>
+  <div class="cal-day-header">Sat</div>
+  <div class="cal-day-header">Sun</div>
+  <div id="cal-cells"></div>
+</div>
+
+<!-- Flashcard modal -->
+<div class="modal-overlay" id="flashcard-modal" onclick="if(event.target===this)closeCard()">
+  <div class="flashcard" id="flashcard-body">
+    <button class="fc-close" onclick="closeCard()">&#x2715;</button>
+    <div id="fc-content"><div style="padding:2rem;text-align:center;color:var(--text-muted)">Loading...</div></div>
+  </div>
+</div>
+
+<script>
+var YEAR = {{ year }};
+var MONTH = {{ month }};
+var TODAY = "{{ today }}";
+
+// Build calendar grid
+function buildCalendar(events) {
+  var cells = document.getElementById('cal-cells');
+  cells.parentNode.style.display = 'grid';
+
+  // Map events by date string YYYY-MM-DD
+  var byDate = {};
+  events.forEach(function(e) {
+    if (!e.scheduled_at) return;
+    var d = e.scheduled_at.substring(0, 10);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(e);
+  });
+
+  // Build calendar days
+  var firstDay = new Date(YEAR, MONTH - 1, 1);
+  var lastDay = new Date(YEAR, MONTH, 0).getDate();
+  // Monday=0 start
+  var startDow = (firstDay.getDay() + 6) % 7;
+
+  var html = '';
+  var cellCount = 0;
+
+  // Leading empty cells (previous month)
+  for (var i = 0; i < startDow; i++) {
+    var prevDate = new Date(YEAR, MONTH - 1, -startDow + i + 1);
+    html += '<div class="cal-cell other-month"><div class="day-num">' + prevDate.getDate() + '</div></div>';
+    cellCount++;
+  }
+
+  // Current month days
+  for (var day = 1; day <= lastDay; day++) {
+    var dateStr = YEAR + '-' + String(MONTH).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    var isToday = dateStr === TODAY;
+    html += '<div class="cal-cell' + (isToday ? ' today' : '') + '">';
+    html += '<div class="day-num">' + day + '</div>';
+    (byDate[dateStr] || []).forEach(function(ev) {
+      var typeClass = ev.interview_type || 'unknown';
+      var statusClass = ev.status === 'completed' ? ' completed' : (ev.status === 'cancelled' ? ' cancelled' : '');
+      var label = (ev.company || 'Interview') + (ev.interview_type ? ' (' + ev.interview_type.replace('_',' ') + ')' : '');
+      html += '<button class="cal-event ' + typeClass + statusClass + '" onclick="openCard(' + ev.id + ')">' + escHtml(label) + '</button>';
+    });
+    html += '</div>';
+    cellCount++;
+  }
+
+  // Trailing empty cells (to complete last row)
+  var remaining = 7 - (cellCount % 7);
+  if (remaining < 7) {
+    for (var j = 1; j <= remaining; j++) {
+      html += '<div class="cal-cell other-month"><div class="day-num">' + j + '</div></div>';
+    }
+  }
+
+  // Replace the placeholder div with actual cells
+  cells.outerHTML = html;
+
+  // Upcoming strip: events in next 7 days
+  buildUpcoming(events);
+}
+
+function buildUpcoming(events) {
+  var now = new Date();
+  var in7 = new Date(now.getTime() + 7 * 86400000);
+  var upcoming = events.filter(function(e) {
+    if (!e.scheduled_at) return false;
+    var d = new Date(e.scheduled_at);
+    return d >= now && d <= in7;
+  });
+  var strip = document.getElementById('upcoming-strip');
+  if (upcoming.length === 0) { strip.style.display = 'none'; return; }
+  strip.style.display = 'grid';
+  strip.innerHTML = upcoming.map(function(e) {
+    var when = e.scheduled_at ? new Date(e.scheduled_at).toLocaleString('en-IN', {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'TBD';
+    return '<div class="up-card" onclick="openCard(' + e.id + ')">' +
+      '<div class="up-when">' + when + '</div>' +
+      '<div class="up-company">' + escHtml(e.company || 'Company') + '</div>' +
+      '<div class="up-role">' + escHtml(e.role || '') + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function openCard(id) {
+  document.getElementById('flashcard-modal').classList.add('open');
+  document.getElementById('fc-content').innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted)">Loading...</div>';
+  fetch('/api/interview/' + id)
+    .then(function(r) { return r.json(); })
+    .then(function(d) { renderCard(d); })
+    .catch(function(e) {
+      document.getElementById('fc-content').innerHTML = '<p style="color:#f87171">Failed to load interview details.</p>';
+    });
+}
+
+function renderCard(d) {
+  var typeLabel = (d.interview_type || 'unknown').replace(/_/g,' ');
+  var typeClass = d.interview_type || 'unknown';
+  var when = d.scheduled_at ? new Date(d.scheduled_at).toLocaleString('en-IN', {
+    weekday:'long',year:'numeric',month:'long',day:'numeric',
+    hour:'2-digit',minute:'2-digit'
+  }) : 'Date not specified';
+
+  var html = '<div class="fc-company">' + escHtml(d.company || 'Company') + '</div>';
+  html += '<div class="fc-role">' + escHtml(d.role || 'Role not specified') + '</div>';
+  html += '<div class="fc-meta">';
+  html += '<span class="fc-badge ' + typeClass + '">' + typeLabel + '</span>';
+  html += '<span class="fc-badge date">&#128197; ' + when + '</span>';
+  if (d.status && d.status !== 'scheduled') html += '<span class="fc-badge date">' + d.status + '</span>';
+  html += '</div>';
+
+  if (d.meeting_link) {
+    html += '<div class="fc-section"><h4>Meeting Link</h4>';
+    html += '<a href="' + escHtml(d.meeting_link) + '" target="_blank" class="fc-meeting-btn">&#128279; Join Meeting</a>';
+    if (d.meeting_id) html += '<div style="margin-top:.5rem;font-size:.8rem;color:var(--text-muted)">Meeting ID: ' + escHtml(d.meeting_id) + (d.meeting_password ? ' | Password: ' + escHtml(d.meeting_password) : '') + '</div>';
+    html += '</div>';
+  }
+
+  if (d.jd_snippet) {
+    html += '<div class="fc-section"><h4>Role Description</h4><div class="fc-jd">' + escHtml(d.jd_snippet) + '</div></div>';
+  }
+
+  if (d.topics_to_prepare) {
+    html += '<div class="fc-section"><h4>Topics to Prepare</h4><div class="fc-topics">' + escHtml(d.topics_to_prepare) + '</div></div>';
+  }
+
+  if (d.recruiter_email) {
+    html += '<div class="fc-section"><h4>Recruiter Contact</h4><div class="fc-recruiter">' + escHtml(d.recruiter_email) + '</div></div>';
+  }
+
+  if (d.email_body) {
+    html += '<div class="fc-section"><h4>Original Email</h4><div class="fc-jd" style="max-height:120px;overflow-y:auto">' + escHtml(d.email_body.substring(0,600)) + (d.email_body.length > 600 ? '...' : '') + '</div></div>';
+  }
+
+  html += '<div class="fc-actions">';
+  html += '<form method="post" action="/interview/' + d.id + '/update" style="display:contents">';
+  html += '<input type="hidden" name="status" value="completed"><button class="btn btn-primary btn-sm" type="submit">Mark Completed</button>';
+  html += '</form>';
+  html += '<form method="post" action="/interview/' + d.id + '/update" style="display:contents">';
+  html += '<input type="hidden" name="status" value="cancelled"><button class="btn btn-warn btn-sm" type="submit">Cancel</button>';
+  html += '</form>';
+  html += '<button class="btn btn-ghost btn-sm" onclick="closeCard()">Close</button>';
+  html += '</div>';
+
+  document.getElementById('fc-content').innerHTML = html;
+}
+
+function closeCard() {
+  document.getElementById('flashcard-modal').classList.remove('open');
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Keyboard: Esc closes modal
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeCard(); });
+
+// Load events
+fetch('/api/calendar/' + YEAR + '/' + MONTH)
+  .then(function(r) { return r.json(); })
+  .then(function(data) { buildCalendar(data); })
+  .catch(function() { buildCalendar([]); });
+</script>
+{% endblock %}

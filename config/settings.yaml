@@ -1,0 +1,40 @@
+scheduling:
+  scout_interval_minutes: 30
+  email_interval_minutes: 1    # 1-minute polling; IMAP UNSEEN is very cheap (most cycles find 0 emails)
+  cv_update_min_minutes: 15
+  cv_update_max_minutes: 30
+  audio_briefing_hour: 20
+  audio_briefing_minute: 0
+
+matching:
+  threshold: 0.38        # logs show top score 0.4438 vs old 0.45 threshold → 0 matches; 0.38 captures good partial-JD matches
+  cosine_weight: 0.6
+  keyword_weight: 0.4
+  max_applications_per_day: 50
+
+browser:
+  headless: true
+  slow_mo: 100
+  timeout_ms: 30000
+
+database:
+  path: "data/jobpilot.db"
+
+logging:
+  level: "INFO"
+  file: "data/logs/jobpilot.log"
+  max_bytes: 5242880
+  backup_count: 3
+
+dashboard:
+  port: 5000
+  host: "127.0.0.1"
+
+resumes_dir: "data/resumes"
+audio_dir: "data/audio"
+resume_config_path: "config/resume.yaml"
+resume_embedding_path: "data/resume_embedding.npy"
+
+notifications:
+  notify_threshold: 0.70      # min match score to push a Telegram job alert
+  max_prompt_chars: 4000      # truncate prompts beyond this to conserve tokens

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Job Heatmap - JobPilot{% endblock %}
+{% block content %}
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:0.25rem;">Job Opportunity Heatmap</h1>
+    <p class="text-muted" style="font-size:0.85rem;">
+      Real-time world map — India prioritised. {{ total_jobs }} total jobs tracked,
+      <span style="color:#22c55e; font-weight:600;">{{ india_jobs }} from India</span>.
+      Auto-refreshes every 2 minutes.
+    </p>
+  </div>
+  <div style="display:flex; gap:0.5rem; align-items:center;">
+    <span class="legend-dot india-dot"></span><span style="font-size:0.8rem; color:#8892a4; margin-right:0.75rem;">India</span>
+    <span class="legend-dot global-dot"></span><span style="font-size:0.8rem; color:#8892a4;">Global</span>
+  </div>
+</div>
+
+<div class="heatmap-card heatmap-card--full">
+  <div id="fullmap"></div>
+</div>
+
+<!-- Stats bar -->
+<div id="heatmap-stats" class="heatmap-stats">
+  <span style="color:#8892a4">Loading location data...</span>
+</div>
+
+<!-- Top locations table -->
+<div class="section" style="margin-top:1.5rem;">
+  <h3>Top Job Markets</h3>
+  <div id="location-table-wrap">
+    <table class="table" id="location-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>City / Location</th>
+          <th>Market</th>
+          <th>Jobs</th>
+          <th>Share</th>
+        </tr>
+      </thead>
+      <tbody id="location-tbody">
+        <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+  // ── Full-screen Heatmap ───────────────────────────────────────────────────
+  const fullMap = L.map('fullmap', {
+    center: [22, 82],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: false,
+    scrollWheelZoom: false,   // prevent page scroll from zooming the map
+  });
+
+  // Re-enable scroll zoom only when user clicks on the map
+  fullMap.on('click', () => fullMap.scrollWheelZoom.enable());
+  fullMap.on('mouseout', () => fullMap.scrollWheelZoom.disable());
+
+  // CartoDB Dark Matter
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18,
+    subdomains: 'abcd',
+  }).addTo(fullMap);
+
+  // India bounding box highlight
+  L.rectangle([[6.5, 68.0], [37.5, 97.5]], {
+    color: '#22c55e', weight: 1.5, fillColor: '#166534', fillOpacity: 0.06, dashArray: '6,4'
+  }).addTo(fullMap).bindTooltip('🇮🇳 India — Priority Market', { permanent: false, direction: 'top' });
+
+  let heatLayer = null;
+  const markerGroup = L.layerGroup().addTo(fullMap);
+
+  function renderFull(points) {
+    const maxCount = points.length > 0 ? Math.max(1, points[0].count) : 1;
+    const total = points.reduce((s, p) => s + p.count, 0);
+
+    const heatData = points.map(p => [p.lat, p.lng, Math.min(1, p.count / maxCount)]);
+    if (heatLayer) fullMap.removeLayer(heatLayer);
+    markerGroup.clearLayers();
+
+    if (heatData.length > 0) {
+      heatLayer = L.heatLayer(heatData, {
+        radius: 20,        // smaller heat radius so India cities are distinct
+        blur: 12,
+        maxZoom: 14,
+        gradient: {
+          0.1: '#0c2461',
+          0.3: '#1e3799',
+          0.5: '#0652dd',
+          0.65: '#0abde3',
+          0.8: '#f9ca24',
+          0.9: '#ee5a24',
+          1.0: '#ffd32a'
+        }
+      }).addTo(fullMap);
+    }
+
+    // Small precise dot markers — scale with zoom level, not with job count
+    const zoom = fullMap.getZoom();
+    points.forEach((p, i) => {
+      const isIndia = p.is_india;
+      const color = isIndia ? '#22c55e' : '#4f8ef7';
+      // Tiny fixed dot: 5px base, max 10px — avoids covering adjacent cities
+      const r = Math.max(4, Math.min(10, 3 + Math.log2(p.count + 1) * 1.2));
+
+      const m = L.circleMarker([p.lat, p.lng], {
+        radius: r,
+        fillColor: color,
+        color: color,
+        weight: 1,
+        fillOpacity: 0.9,
+      }).addTo(markerGroup);
+
+      const share = total > 0 ? ((p.count / total) * 100).toFixed(1) : 0;
+      const rank = i + 1;
+      m.bindPopup(
+        `<div style="background:#1a1d27;color:#e2e8f0;padding:12px 14px;border-radius:8px;font-size:13px;min-width:150px;">
+          <div style="color:#8892a4;font-size:11px;margin-bottom:4px;">#${rank} Top Market</div>
+          <div style="font-weight:700;font-size:15px;margin-bottom:6px;">${p.city}</div>
+          <div style="color:${color};font-size:18px;font-weight:700;">${p.count}</div>
+          <div style="color:#8892a4;font-size:11px;">jobs &nbsp;·&nbsp; ${share}% of total</div>
+          ${isIndia ? '<div style="margin-top:6px;padding:3px 6px;background:#14532d;border-radius:4px;font-size:11px;color:#22c55e;">🇮🇳 Priority Market</div>' : ''}
+        </div>`,
+        { className: 'dark-popup', maxWidth: 220 }
+      );
+
+      // Permanent label for top 10
+      if (i < 10) {
+        m.bindTooltip(`${p.city} (${p.count})`, {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -r - 4],
+          className: 'city-label',
+          opacity: 0.9,
+        });
+      }
+    });
+
+    // Stats bar
+    const indiaTotal = points.filter(p => p.is_india).reduce((s, p) => s + p.count, 0);
+    const indiaShare = total > 0 ? ((indiaTotal / total) * 100).toFixed(1) : 0;
+    document.getElementById('heatmap-stats').innerHTML = `
+      <span class="hstat"><span class="hstat-label">Total locations</span><span class="hstat-val">${points.length}</span></span>
+      <span class="hstat"><span class="hstat-label">Total jobs mapped</span><span class="hstat-val">${total}</span></span>
+      <span class="hstat india"><span class="hstat-label">🇮🇳 India jobs</span><span class="hstat-val" style="color:#22c55e">${indiaTotal} (${indiaShare}%)</span></span>
+      <span class="hstat"><span class="hstat-label">🌍 Global jobs</span><span class="hstat-val" style="color:#4f8ef7">${total - indiaTotal} (${(100 - parseFloat(indiaShare)).toFixed(1)}%)</span></span>
+      <span class="hstat"><span class="hstat-label">Top market</span><span class="hstat-val">${points[0] ? points[0].city + ' (' + points[0].count + ')' : '—'}</span></span>
+    `;
+
+    // Location table
+    const tbody = document.getElementById('location-tbody');
+    if (points.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No location data yet — scout discovers jobs every 30 min</td></tr>';
+      return;
+    }
+    tbody.innerHTML = points.slice(0, 30).map((p, i) => {
+      const share = total > 0 ? ((p.count / total) * 100).toFixed(1) : 0;
+      const color = p.is_india ? '#22c55e' : '#4f8ef7';
+      return `<tr>
+        <td class="text-muted">${i + 1}</td>
+        <td><a href="#" onclick="fullMap.flyTo([${p.lat},${p.lng}],8);return false;" style="color:${color};text-decoration:none;">
+          ${p.city}</a></td>
+        <td>${p.is_india ? '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">🇮🇳 India</span>' : '<span class="badge" style="background:rgba(79,142,247,0.15);color:#4f8ef7;">🌍 Global</span>'}</td>
+        <td><strong>${p.count}</strong></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;background:#2e3148;border-radius:2px;height:6px;overflow:hidden;">
+              <div style="width:${share}%;background:${color};height:100%;border-radius:2px;"></div>
+            </div>
+            <span style="color:#8892a4;font-size:0.8rem;min-width:36px;">${share}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function loadFull() {
+    fetch('/api/heatmap').then(r => r.json()).then(renderFull).catch(() => {
+      document.getElementById('heatmap-stats').innerHTML =
+        '<span style="color:#8892a4">Heatmap unavailable — check connection</span>';
+    });
+  }
+
+  loadFull();
+  setInterval(loadFull, 120000);  // refresh every 2 min
+</script>
+{% endblock %}

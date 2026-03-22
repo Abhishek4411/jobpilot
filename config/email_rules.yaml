@@ -1,0 +1,60 @@
+# Email classification rules — loaded into LLM system prompts for context
+# This file teaches the LLM how to correctly classify job-search emails.
+
+job_alert_sources:
+  description: >
+    These senders send job digest / alert emails that contain lists of job links inside.
+    Do NOT classify as irrelevant — classify as job_alert so links get extracted.
+  senders:
+    - "jobs-noreply@linkedin.com"       # LinkedIn job recommendations
+    - "jobalerts@naukri.com"            # Naukri job alerts
+    - "jobs@indeed.com"                 # Indeed job alerts
+    - "alerts@instahyre.com"            # Instahyre alerts
+    - "noreply@foundit.in"              # Foundit (formerly Monster India)
+    - "noreply@foundit.sg"              # Foundit Singapore
+  subject_patterns:
+    - "jobs for you"
+    - "explore new jobs"
+    - "N new jobs matching"
+    - "recommended jobs"
+    - "be an early applicant"
+    - "hot job opportunities"
+    - "similar jobs"
+
+application_confirmation_sources:
+  description: >
+    These emails confirm that a job application was submitted — either by the agent
+    or manually by the user. Track these to update the "applied" count in the dashboard.
+  subject_patterns:
+    - "you applied for N jobs on [date]"   # Naukri weekly summary
+    - "application submitted"
+    - "applied successfully"
+    - "your application has been received"
+    - "application confirmed"
+
+draft_reply_categories:
+  description: >
+    Only these categories warrant an automated draft reply from the LLM.
+    Never draft replies to noreply addresses or digest emails.
+  categories:
+    - job_opportunity: "A real recruiter reached out directly with a specific open role"
+    - interview_request: "An invitation to schedule or attend an interview"
+    - follow_up: "Following up on a previously submitted application"
+
+do_not_reply:
+  description: >
+    These email types should NEVER get a reply drafted.
+    Extract links from job_alert emails; track counts from application_confirmation.
+  categories:
+    - job_alert
+    - application_confirmation
+    - irrelevant
+    - status_update
+    - rejection
+
+irrelevant_examples:
+  - Banking OTP / transaction alerts
+  - Shopping order confirmations (Amazon, Myntra, Flipkart)
+  - Food delivery notifications (Swiggy, Zomato)
+  - Social media friend requests
+  - Insurance / investment app notifications (Groww, Zerodha, Paytm)
